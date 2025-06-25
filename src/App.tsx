@@ -28,11 +28,9 @@ import './App.css';
 import { StockInfoPanel } from './components/StockInfoPanel';
 import { FinancialTerm } from './components/EducationalTooltip';
 import { ChartControls } from './components/ChartControls';
-import { MonteCarloSimulation } from './components/MonteCarloSimulation';
-import { ScenarioAnalysis } from './components/ScenarioAnalysis';
 import { NavigationTabs } from './components/NavigationTabs';
 import { OverviewPage } from './components/pages/OverviewPage';
-import { AdvancedAnalyticsPage } from './components/pages/AdvancedAnalyticsPage';
+import { InvestmentComparisonPage } from './components/pages/InvestmentComparisonPage';
 import { StockDetailsPage } from './components/pages/StockDetailsPage';
 import { RiskAnalysisPage } from './components/pages/RiskAnalysisPage';
 
@@ -524,11 +522,9 @@ function App() {
                     )}
 
                     {activeTab === 'analytics' && (
-                      <AdvancedAnalyticsPage 
+                      <InvestmentComparisonPage 
                         key="analytics"
                         results={results}
-                        riskMetrics={riskMetrics}
-                        stockInfo={stockInfo}
                         contribution={contribution}
                         cadence={cadence}
                         startDate={startDate}

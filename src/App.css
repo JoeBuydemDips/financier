@@ -1,4 +1,3 @@
-
 /* Modern Dark Theme Variables */
 :root {
   --bg-primary: #0d1117;
@@ -60,17 +59,17 @@ body {
 
 /* Main Layout */
 .app-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
   padding: 2rem;
   min-height: calc(100vh - 80px);
 }
 
 .app-grid {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 350px 1fr;
   gap: 2rem;
   height: 100%;
+  max-width: none;
 }
 
 /* Modern Cards */
@@ -243,8 +242,10 @@ body {
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: 1.5rem;
-  margin-top: 1.5rem;
-  min-height: 400px;
+  margin-top: 0;
+  min-height: 450px;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* Loading States */
@@ -631,12 +632,18 @@ body {
 
 /* Enhanced Grid Layout */
 .app-grid {
-  grid-template-columns: 400px 1fr;
+  grid-template-columns: 350px 1fr;
+}
+
+@media (max-width: 1400px) {
+  .app-grid {
+    grid-template-columns: 320px 1fr;
+  }
 }
 
 @media (max-width: 1200px) {
   .app-grid {
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 300px 1fr;
   }
 }
 
@@ -647,30 +654,37 @@ body {
   }
 }
 
-/* Chart Controls Styles */
+/* Chart Container Wrapper for Overlay Controls */
+.chart-container-wrapper {
+  position: relative;
+}
+
+/* Chart Controls Compact Container */
 .chart-controls {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 2rem;
-  padding: 1rem;
-  background: var(--bg-quaternary);
-  border: 1px solid var(--border-primary);
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(48, 54, 61, 0.3);
+  border: 1px solid rgba(48, 54, 61, 0.6);
   border-radius: var(--radius-sm);
   margin-bottom: 1rem;
+  width: 100%;
 }
 
 .chart-controls-section {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.75rem;
 }
 
 .chart-controls-label {
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .chart-type-buttons {
@@ -681,13 +695,13 @@ body {
 .chart-type-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--bg-tertiary);
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  background: transparent;
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -706,22 +720,22 @@ body {
 
 .series-toggles {
   display: flex;
-  flex-direction: column;
   gap: 0.5rem;
-  min-width: 200px;
+  min-width: auto;
 }
 
 .series-toggle {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-tertiary);
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
+  font-size: 0.75rem;
 }
 
 .series-toggle:hover {
@@ -745,10 +759,10 @@ body {
 }
 
 .series-toggle-label {
-  flex: 1;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .series-toggle-visibility {
@@ -757,10 +771,24 @@ body {
   flex-shrink: 0;
 }
 
+/* Performance Comparison Neutral State */
+.outperformance.neutral {
+  background: rgba(139, 148, 158, 0.1);
+  color: var(--text-secondary);
+}
+
 @media (max-width: 768px) {
   .chart-controls {
     flex-direction: column;
     gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-quaternary);
+  }
+  
+  .chart-controls-section {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
   }
   
   .chart-type-buttons {
@@ -768,7 +796,8 @@ body {
   }
   
   .series-toggles {
-    min-width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 
@@ -1174,12 +1203,13 @@ body {
 
 /* Page-specific Styles */
 .overview-page,
-.advanced-analytics-page,
+.investment-comparison-page,
 .stock-details-page,
 .risk-analysis-page {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  width: 100%;
 }
 
 /* Stock Details Page */
@@ -1321,6 +1351,54 @@ body {
   }
   
   .recommendations-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Investment Comparison Page Styles */
+.investment-comparison-page .comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+}
+
+.investment-comparison-page .winner-indicator {
+  position: absolute;
+  top: -10px;
+  left: 1rem;
+  background: var(--accent-green);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--shadow-soft);
+}
+
+.investment-comparison-page .comparison-card {
+  position: relative;
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+}
+
+.investment-comparison-page .comparison-card.winner {
+  background: rgba(0, 211, 149, 0.1);
+  border: 2px solid var(--accent-green);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.investment-comparison-page .comparison-card.loser {
+  background: var(--bg-quaternary);
+  border: 1px solid var(--border-primary);
+}
+
+@media (max-width: 768px) {
+  .investment-comparison-page .comparison-grid {
     grid-template-columns: 1fr;
   }
 }

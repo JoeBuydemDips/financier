@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { 
   BarChart3, 
-  Target, 
+  TrendingUp, 
   Building2, 
   AlertTriangle
 } from 'lucide-react';
@@ -21,9 +21,9 @@ export const NavigationTabs = ({ activeTab, onTabChange }: NavigationTabsProps) 
     },
     {
       id: 'analytics',
-      label: 'Advanced Analytics',
-      icon: <Target size={18} />,
-      description: 'Monte Carlo & scenario analysis'
+      label: 'Investment Comparison',
+      icon: <TrendingUp size={18} />,
+      description: 'Compare stocks and strategies'
     },
     {
       id: 'stock',
