@@ -40,14 +40,18 @@ body {
   background: rgba(22, 27, 34, 0.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-primary);
-  padding: 1rem 2rem;
+  padding: 0.75rem 2rem;
   position: sticky;
   top: 0;
   z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 50px;
 }
 
 .app-header .brand {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
   text-decoration: none;
@@ -55,6 +59,9 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Main Layout */
@@ -1400,5 +1407,292 @@ body {
 @media (max-width: 768px) {
   .investment-comparison-page .comparison-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Investment Comparison Page Styles */
+.search-result-item {
+  transition: all 0.2s ease;
+}
+
+.search-result-item:hover {
+  background: var(--bg-quaternary);
+  transform: translateY(-1px);
+}
+
+.investment-comparison-page .form-group {
+  position: relative;
+}
+
+.investment-comparison-page table {
+  border-spacing: 0;
+}
+
+.investment-comparison-page th {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.75rem;
+}
+
+.investment-comparison-page tbody tr {
+  transition: all 0.2s ease;
+}
+
+.investment-comparison-page tbody tr:hover {
+  background: rgba(88, 166, 255, 0.05);
+}
+
+/* Asset allocation input styling */
+.investment-comparison-page input[type="number"] {
+  transition: all 0.2s ease;
+}
+
+.investment-comparison-page input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+}
+
+/* Chart container enhancements */
+.investment-comparison-page .glass-card .recharts-wrapper {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .investment-comparison-page table {
+    font-size: 0.875rem;
+  }
+  
+  .investment-comparison-page th,
+  .investment-comparison-page td {
+    padding: 0.75rem 0.5rem !important;
+  }
+}
+
+/* Compact Header Navigation */
+.header-navigation {
+  display: flex;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.header-navigation .navigation-tabs {
+  display: flex;
+}
+
+.header-navigation .tabs-container {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 0.25rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-navigation .tab-button {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: auto;
+  cursor: pointer;
+}
+
+.header-navigation .tab-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.header-navigation .tab-button.active {
+  background: var(--accent-blue);
+  color: white;
+  box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
+}
+
+.header-navigation .tab-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-navigation .tab-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.header-navigation .tab-description {
+  display: none;
+}
+
+.header-navigation .tab-icon {
+  width: 16px;
+  height: 16px;
+  margin-bottom: 0;
+}
+
+.header-navigation .tab-indicator {
+  display: none;
+}
+
+/* Enhanced Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.empty-state-icon {
+  color: var(--accent-blue);
+  opacity: 0.8;
+}
+
+.empty-state-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty-state-description {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 500px;
+  margin: 0;
+}
+
+.quick-start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 700px;
+}
+
+.quick-start-item {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.quick-start-item:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(88, 166, 255, 0.2);
+}
+
+.quick-start-item svg {
+  color: var(--accent-blue);
+  margin-bottom: 1rem;
+}
+
+.quick-start-item h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.quick-start-item p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.popular-tickers {
+  width: 100%;
+  max-width: 500px;
+}
+
+.popular-tickers h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.ticker-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.ticker-button {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ticker-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(88, 166, 255, 0.4);
+}
+
+@media (max-width: 1024px) {
+  .header-navigation .tab-label {
+    display: none;
+  }
+  
+  .header-navigation .tab-button {
+    padding: 0.5rem;
+    width: 36px;
+    height: 36px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-navigation {
+    display: none;
+  }
+  
+  .app-header {
+    justify-content: center;
+    padding: 0.75rem 1rem;
+  }
+  
+  .quick-start-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .empty-state {
+    padding: 2rem 1rem;
+  }
+  
+  .empty-state-title {
+    font-size: 1.5rem;
   }
 }

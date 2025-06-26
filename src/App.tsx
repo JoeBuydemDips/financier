@@ -319,7 +319,7 @@ function App() {
 
   return (
     <div className="app">
-      {/* Modern Header */}
+      {/* Modern Header with Navigation */}
       <motion.header 
         className="app-header"
         initial={{ y: -100 }}
@@ -330,6 +330,14 @@ function App() {
           <TrendingUp size={24} style={{ marginRight: '8px', display: 'inline' }} />
           Financier
         </a>
+        
+        {/* Header Navigation */}
+        <div className="header-navigation">
+          <NavigationTabs 
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        </div>
       </motion.header>
 
       <div className="app-container">
@@ -496,15 +504,8 @@ function App() {
                 </motion.div>
               )}
 
-              {(results || activeTab !== 'overview') && (
-                <>
-                  {/* Navigation Tabs */}
-                  <NavigationTabs 
-                    activeTab={activeTab}
-                    onTabChange={handleTabChange}
-                  />
-
-                  {/* Page Content */}
+              {/* Page Content - Always Show */}
+              {(results || activeTab !== 'overview') ? (
                   <AnimatePresence mode="wait">
                     {activeTab === 'overview' && (
                       <OverviewPage 
@@ -548,7 +549,59 @@ function App() {
                       />
                     )}
                   </AnimatePresence>
-                </>
+              ) : (
+                /* Enhanced Empty State */
+                <motion.div
+                  className="glass-card empty-state"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                  <div className="empty-state-content">
+                    <div className="empty-state-icon">
+                      <BarChart3 size={48} />
+                    </div>
+                    <h2 className="empty-state-title">Welcome to Financier</h2>
+                    <p className="empty-state-description">
+                      Your intelligent investment analysis platform. Get started by entering a ticker symbol and calculating your investment returns.
+                    </p>
+                    
+                    <div className="quick-start-grid">
+                      <div className="quick-start-item">
+                        <Activity size={24} />
+                        <h4>Analyze Performance</h4>
+                        <p>Calculate DCA returns and benchmark performance</p>
+                      </div>
+                      <div className="quick-start-item">
+                        <TrendingUp size={24} />
+                        <h4>Compare Investments</h4>
+                        <p>Multi-asset portfolio backtesting with real data</p>
+                      </div>
+                      <div className="quick-start-item">
+                        <AlertTriangle size={24} />
+                        <h4>Risk Analysis</h4>
+                        <p>Understand volatility, drawdowns, and risk metrics</p>
+                      </div>
+                    </div>
+
+                    <div className="popular-tickers">
+                      <h4>Popular Tickers to Try:</h4>
+                      <div className="ticker-buttons">
+                        {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ'].map((symbol) => (
+                          <motion.button
+                            key={symbol}
+                            className="ticker-button"
+                            onClick={() => setTicker(symbol)}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {symbol}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
