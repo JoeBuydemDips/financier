@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Building2, TrendingUp, BarChart3, Info } from 'lucide-react';
 import { StockInfoPanel } from '../StockInfoPanel';
 
 interface StockDetailsPageProps {
@@ -10,6 +11,61 @@ export const StockDetailsPage = ({
   stockInfo,
   stockInfoLoading
 }: StockDetailsPageProps) => {
+  // Show filler content when no stock info is available
+  if (!stockInfo && !stockInfoLoading) {
+    return (
+      <motion.div 
+        className="stock-details-page"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="glass-card empty-state">
+          <div className="empty-state-content">
+            <div className="empty-state-icon">
+              <Building2 size={48} />
+            </div>
+            <h2 className="empty-state-title">Stock Research Center</h2>
+            <p className="empty-state-description">
+              Enter a ticker symbol to access comprehensive company information, financial metrics, and trading data.
+            </p>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '2rem',
+              marginTop: '3rem',
+              width: '100%',
+              maxWidth: '900px'
+            }}>
+              <div className="highlight-card">
+                <BarChart3 size={24} />
+                <div>
+                  <h5>Financial Metrics</h5>
+                  <p>Market cap, P/E ratio, book value, and key valuation indicators</p>
+                </div>
+              </div>
+              <div className="highlight-card">
+                <TrendingUp size={24} />
+                <div>
+                  <h5>Trading Data</h5>
+                  <p>Volume, volatility (beta), 52-week ranges, and price movements</p>
+                </div>
+              </div>
+              <div className="highlight-card">
+                <Info size={24} />
+                <div>
+                  <h5>Company Info</h5>
+                  <p>Sector classification, business description, and market position</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       className="stock-details-page"

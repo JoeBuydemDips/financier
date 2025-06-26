@@ -8,11 +8,96 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
+// Simple in-memory cache with TTL
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Cache helper functions
+const getCacheKey = (endpoint, params) => {
+  return `${endpoint}:${JSON.stringify(params)}`;
+};
+
+const getFromCache = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`Cache hit for: ${key}`);
+    return cached.data;
+  }
+  if (cached) {
+    cache.delete(key); // Remove expired cache
+  }
+  return null;
+};
+
+const setCache = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+  console.log(`Cached: ${key}`);
+};
+
+// Error handler for Yahoo Finance API issues
+const handleYahooError = (error, operation) => {
+  console.error(`Yahoo Finance ${operation} error:`, error);
+  
+  if (error.code === 'UND_ERR_CONNECT_TIMEOUT') {
+    return {
+      status: 408,
+      message: 'Yahoo Finance API is currently slow to respond. Please try again in a moment.',
+      type: 'timeout'
+    };
+  }
+  
+  if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+    return {
+      status: 503,
+      message: 'Yahoo Finance API is currently unavailable. Please check your internet connection and try again.',
+      type: 'connection'
+    };
+  }
+  
+  if (error.status === 429) {
+    return {
+      status: 429,
+      message: 'Too many requests to Yahoo Finance API. Please wait a few minutes and try again.',
+      type: 'rate_limit'
+    };
+  }
+  
+  if (error.status === 404) {
+    return {
+      status: 404,
+      message: 'The requested stock symbol was not found. Please check the ticker symbol and try again.',
+      type: 'not_found'
+    };
+  }
+  
+  return {
+    status: 500,
+    message: 'Yahoo Finance API is experiencing issues. Please try again later.',
+    type: 'api_error'
+  };
+};
+
+// Add delay function to avoid rate limiting
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Get comprehensive stock data
 app.get('/stock/:ticker', async (req, res) => {
   const { ticker } = req.params;
+  const cacheKey = getCacheKey('stock', { ticker });
+
+  // Check cache first
+  const cachedData = getFromCache(cacheKey);
+  if (cachedData) {
+    return res.json(cachedData);
+  }
 
   try {
+    // Add small delay to avoid rate limiting
+    await delay(200);
+    
     // Fetch multiple data sources in parallel
     const [quote, summaryDetail, defaultKeyStatistics] = await Promise.all([
       yahooFinance.quote(ticker),
@@ -40,10 +125,16 @@ app.get('/stock/:ticker', async (req, res) => {
       priceToBook: defaultKeyStatistics.defaultKeyStatistics?.priceToBook
     };
 
+    // Cache successful response
+    setCache(cacheKey, stockInfo);
     res.json(stockInfo);
   } catch (error) {
-    console.error('Stock info error:', error);
-    res.status(500).json({ message: 'Failed to fetch stock information' });
+    const errorResponse = handleYahooError(error, 'stock data');
+    res.status(errorResponse.status).json({
+      message: errorResponse.message,
+      type: errorResponse.type,
+      ticker: ticker
+    });
   }
 });
 
@@ -51,24 +142,60 @@ app.get('/stock/:ticker', async (req, res) => {
 app.get('/history/:ticker', async (req, res) => {
   const { ticker } = req.params;
   const { startDate, endDate } = req.query;
+  const cacheKey = getCacheKey('history', { ticker, startDate, endDate });
+
+  // Check cache first
+  const cachedData = getFromCache(cacheKey);
+  if (cachedData) {
+    return res.json(cachedData);
+  }
 
   try {
+    await delay(200);
+    
     const queryOptions = { period1: startDate, period2: endDate };
     
     // Fetch both the target stock and S&P 500 for comparison
     const [stockData, spyData] = await Promise.all([
-      yahooFinance.historical(ticker, queryOptions),
-      yahooFinance.historical('SPY', queryOptions)
+      yahooFinance.chart(ticker, queryOptions), // Using chart instead of deprecated historical
+      yahooFinance.chart('SPY', queryOptions)
     ]);
 
-    res.json({
-      stock: stockData,
-      benchmark: spyData
-    });
+    const response = {
+      stock: stockData.quotes,
+      benchmark: spyData.quotes
+    };
+
+    // Cache successful response
+    setCache(cacheKey, response);
+    res.json(response);
   } catch (error) {
-    console.error('Historical data error:', error);
-    res.status(500).json({ message: 'Failed to fetch historical data' });
+    const errorResponse = handleYahooError(error, 'historical data');
+    res.status(errorResponse.status).json({
+      message: errorResponse.message,
+      type: errorResponse.type,
+      ticker: ticker,
+      period: `${startDate} to ${endDate}`
+    });
   }
+});
+
+// Cache status endpoint
+app.get('/api/cache/status', (req, res) => {
+  res.json({
+    cacheSize: cache.size,
+    entries: Array.from(cache.keys()).map(key => ({
+      key,
+      age: Date.now() - cache.get(key).timestamp,
+      ttl: CACHE_TTL
+    }))
+  });
+});
+
+// Clear cache endpoint (for development)
+app.post('/api/cache/clear', (req, res) => {
+  cache.clear();
+  res.json({ message: 'Cache cleared successfully' });
 });
 
 // NEW: Search for assets (stocks, crypto, ETFs)

@@ -11,7 +11,8 @@ import {
   Loader2,
   AlertTriangle,
   TrendingDown,
-  Activity
+  Activity,
+  Building2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -70,13 +71,19 @@ function App() {
       setStockInfoLoading(true);
       try {
         const response = await fetch(`http://localhost:3001/stock/${ticker}`);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch stock information');
+          // Handle different types of API errors
+          const errorData = await response.json();
+          console.warn(`Stock info API error (${response.status}):`, errorData.message);
+          setStockInfo(null);
+          return;
         }
+        
         const data = await response.json();
         setStockInfo(data);
       } catch (err) {
-        console.error('Stock info error:', err);
+        console.error('Stock info network error:', err);
         setStockInfo(null);
       } finally {
         setStockInfoLoading(false);
@@ -160,13 +167,31 @@ function App() {
 
     try {
       const response = await fetch(`http://localhost:3001/history/${ticker}?startDate=${startDate}&endDate=${endDate}`);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch historical data.');
+        // Handle different types of API errors with user-friendly messages
+        const errorData = await response.json();
+        
+        let userMessage = errorData.message;
+        if (errorData.type === 'rate_limit') {
+          userMessage = `⏱️ ${errorData.message}`;
+        } else if (errorData.type === 'timeout') {
+          userMessage = `🐌 ${errorData.message}`;
+        } else if (errorData.type === 'connection') {
+          userMessage = `🌐 ${errorData.message}`;
+        } else if (errorData.type === 'not_found') {
+          userMessage = `❓ Stock symbol "${ticker}" not found. Please check the ticker symbol.`;
+        } else {
+          userMessage = `⚠️ ${errorData.message}`;
+        }
+        
+        throw new Error(userMessage);
       }
+      
       const data = await response.json();
 
       if (!data.stock || data.stock.length === 0) {
-        throw new Error('No data found for the selected ticker and date range.');
+        throw new Error('No historical data found for the selected ticker and date range.');
       }
 
       const historicalData = data.stock;
@@ -505,7 +530,7 @@ function App() {
               )}
 
               {/* Page Content - Always Show */}
-              {(results || activeTab !== 'overview') ? (
+              {(results && activeTab === 'overview') || activeTab !== 'overview' ? (
                   <AnimatePresence mode="wait">
                     {activeTab === 'overview' && (
                       <OverviewPage 
@@ -563,31 +588,13 @@ function App() {
                     </div>
                     <h2 className="empty-state-title">Welcome to Financier</h2>
                     <p className="empty-state-description">
-                      Your intelligent investment analysis platform. Get started by entering a ticker symbol and calculating your investment returns.
+                      Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
                     </p>
                     
-                    <div className="quick-start-grid">
-                      <div className="quick-start-item">
-                        <Activity size={24} />
-                        <h4>Analyze Performance</h4>
-                        <p>Calculate DCA returns and benchmark performance</p>
-                      </div>
-                      <div className="quick-start-item">
-                        <TrendingUp size={24} />
-                        <h4>Compare Investments</h4>
-                        <p>Multi-asset portfolio backtesting with real data</p>
-                      </div>
-                      <div className="quick-start-item">
-                        <AlertTriangle size={24} />
-                        <h4>Risk Analysis</h4>
-                        <p>Understand volatility, drawdowns, and risk metrics</p>
-                      </div>
-                    </div>
-
                     <div className="popular-tickers">
-                      <h4>Popular Tickers to Try:</h4>
+                      <h4>Popular Assets to Analyze:</h4>
                       <div className="ticker-buttons">
-                        {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ'].map((symbol) => (
+                        {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ', 'MSFT', 'GOOGL'].map((symbol) => (
                           <motion.button
                             key={symbol}
                             className="ticker-button"

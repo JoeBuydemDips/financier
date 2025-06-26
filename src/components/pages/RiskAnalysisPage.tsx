@@ -3,7 +3,9 @@ import {
   AlertTriangle,
   TrendingDown,
   Shield,
-  Activity
+  Activity,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 import { FinancialTerm } from '../EducationalTooltip';
 
@@ -19,13 +21,51 @@ export const RiskAnalysisPage = ({
   if (!riskMetrics) {
     return (
       <motion.div 
-        className="glass-card"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        className="risk-analysis-page"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
       >
-        <div className="card-body" style={{ textAlign: 'center', padding: '3rem' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
-            Calculate investment returns to view detailed risk analysis
+        <div className="glass-card empty-state">
+          <div className="empty-state-content">
+            <div className="empty-state-icon">
+              <AlertTriangle size={48} />
+            </div>
+            <h2 className="empty-state-title">Risk Analysis Center</h2>
+            <p className="empty-state-description">
+              Calculate investment returns to access comprehensive risk metrics and analysis tools.
+            </p>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '2rem',
+              marginTop: '3rem',
+              width: '100%',
+              maxWidth: '900px'
+            }}>
+              <div className="highlight-card">
+                <Activity size={24} />
+                <div>
+                  <h5>Volatility Analysis</h5>
+                  <p>Measure price fluctuation and market sensitivity with annual volatility metrics</p>
+                </div>
+              </div>
+              <div className="highlight-card">
+                <TrendingDown size={24} />
+                <div>
+                  <h5>Drawdown Assessment</h5>
+                  <p>Understand worst-case scenarios and maximum peak-to-trough declines</p>
+                </div>
+              </div>
+              <div className="highlight-card">
+                <BarChart3 size={24} />
+                <div>
+                  <h5>Risk-Adjusted Returns</h5>
+                  <p>Evaluate Sharpe ratio and beta to measure risk-adjusted performance</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </motion.div>
