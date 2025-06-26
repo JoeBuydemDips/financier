@@ -2,7 +2,9 @@
 
 > Investment Analysis Platform
 
-Financier is an investment analysis platform designed to help anyone regardless of experience see what they could have achieved by investing, and to demystify the process of building wealth. With real-time stock data, historical performance validation, and clear risk analytics, Financier empowers users to discover that investing doesn't have to be complicated or intimidating. Whether you're curious about "what if I had invested in Apple five years ago?" or want to compare strategies, Financier makes it easy to learn from the past and make confident decisions for the future.
+Financier is an investment analysis platform designed to help anyone regardless of experience see what they could have achieved by investing, and to demystify the process of building wealth. Built with Netlify Functions for scalable, serverless backend operations and powered by real-time stock data, historical performance validation, and clear risk analytics, Financier empowers users to discover that investing doesn't have to be complicated or intimidating. Whether you're curious about "what if I had invested in Apple five years ago?" or want to compare strategies, Financier makes it easy to learn from the past and make confident decisions for the future.
+
+[check it out here](https://krasgnik-financier.netlify.app)
 
 ## ✨ Features
 
@@ -76,13 +78,13 @@ _Professional risk assessment with detailed metrics and management recommendatio
 
 ### Backend
 
-- **Node.js** - Server runtime
-- **Express** - Web application framework
+- **Netlify Functions** - Serverless functions for API endpoints
 - **Yahoo Finance API** - Real-time financial data
-- **CORS** - Cross-origin resource sharing
+- **Built-in CORS** - Seamless cross-origin resource sharing
 
 ### Development Tools
 
+- **Netlify CLI** - Local development and deployment
 - **ESLint** - Code linting and formatting
 - **TypeScript ESLint** - TypeScript-specific linting rules
 - **Vite HMR** - Hot module replacement for development
@@ -93,6 +95,7 @@ _Professional risk assessment with detailed metrics and management recommendatio
 
 - Node.js (v18 or higher)
 - npm or yarn package manager
+- Netlify CLI (installed globally): `npm install -g netlify-cli`
 
 ### Installation
 
@@ -109,19 +112,15 @@ _Professional risk assessment with detailed metrics and management recommendatio
    npm install
    ```
 
-3. **Start the backend server**
+3. **Start the development server with Netlify Functions**
 
    ```bash
-   node server/server.js
+   netlify dev
    ```
 
-   The API server will run on `http://localhost:3001`
+   The application will be available at `http://localhost:8888`
 
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-   The application will be available at `http://localhost:5173`
+   This single command starts both the frontend and serverless backend functions.
 
 ### Building for Production
 
@@ -130,6 +129,22 @@ npm run build
 ```
 
 The built application will be in the `dist/` directory.
+
+### Deployment to Netlify
+
+#### Option 1: Git-based Deployment (Recommended)
+
+1. Push your code to GitHub
+2. Connect your repository to Netlify
+3. Netlify automatically detects `netlify.toml` and deploys both frontend and functions
+
+#### Option 2: Manual Deployment
+
+```bash
+# Build and deploy directly
+npm run build
+netlify deploy --prod
+```
 
 ## 📱 Usage
 
@@ -144,8 +159,10 @@ The built application will be in the `dist/` directory.
 
 ## 🌟 Key Highlights
 
+- **Serverless Architecture**: Built with Netlify Functions for automatic scaling and global performance
 - **Professional-Grade Analysis**: Sophisticated financial calculations and risk metrics
 - **Real-Time Data**: Live stock prices and market information
+- **Zero Server Maintenance**: Fully serverless backend with automatic updates and scaling
 - **Responsive Design**: Seamless experience across all devices
 - **Educational Tooltips**: Learn about financial concepts while using the platform
 - **Consistent UX**: Investment calculator available on every page for easy parameter adjustment
@@ -164,19 +181,28 @@ financier/
 │   ├── App.tsx             # Main application component
 │   ├── App.css             # Global styles and design system
 │   └── main.tsx            # Application entry point
+├── netlify/
+│   └── functions/          # Serverless API functions
+│       ├── stock.js        # Stock data endpoint
+│       ├── history.js      # Historical data endpoint
+│       ├── search.js       # Stock search endpoint
+│       └── calculate-dca.js # DCA calculation endpoint
 ├── server/
-│   └── server.js           # Express API server
+│   └── server.js           # Legacy Express server (replaced by functions)
 ├── docs/
 │   └── screenshots/        # Application screenshots
+├── netlify.toml            # Netlify configuration
 └── public/                 # Static assets
 ```
 
-### Available Scripts
+### API Endpoints
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run preview` - Preview production build
+When running locally with `netlify dev`, the following API endpoints are available:
+
+- `GET /.netlify/functions/stock/{ticker}` - Get stock information
+- `GET /.netlify/functions/history/{ticker}?startDate={date}&endDate={date}` - Get historical data
+- `GET /.netlify/functions/search/{query}` - Search for stocks
+- `POST /.netlify/functions/calculate-dca` - Calculate DCA performance
 
 ## 📄 License
 

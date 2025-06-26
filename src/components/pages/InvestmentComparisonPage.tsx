@@ -84,7 +84,7 @@ export const InvestmentComparisonPage = () => {
 
     setIsSearching(true);
     try {
-      const response = await fetch(`http://localhost:3001/search/${encodeURIComponent(query)}`);
+              const response = await fetch(`/.netlify/functions/search/${encodeURIComponent(query)}`);
       if (response.ok) {
         const data = await response.json();
         setSearchResults(data);
@@ -159,7 +159,7 @@ export const InvestmentComparisonPage = () => {
 
     setIsCalculating(true);
     try {
-      const response = await fetch('http://localhost:3001/calculate-dca', {
+              const response = await fetch('/.netlify/functions/calculate-dca', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

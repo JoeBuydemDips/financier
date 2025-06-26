@@ -70,7 +70,7 @@ function App() {
       
       setStockInfoLoading(true);
       try {
-        const response = await fetch(`http://localhost:3001/stock/${ticker}`);
+        const response = await fetch(`/.netlify/functions/stock/${ticker}`);
         
         if (!response.ok) {
           // Handle different types of API errors
@@ -166,7 +166,7 @@ function App() {
     setRiskMetrics(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/history/${ticker}?startDate=${startDate}&endDate=${endDate}`);
+              const response = await fetch(`/.netlify/functions/history/${ticker}?startDate=${startDate}&endDate=${endDate}`);
       
       if (!response.ok) {
         // Handle different types of API errors with user-friendly messages
