@@ -6,13 +6,7 @@ import {
   Calendar, 
   BarChart3, 
   Target,
-  ArrowUpRight,
-  ArrowDownRight,
-  Loader2,
-  AlertTriangle,
-  TrendingDown,
-  Activity,
-  Building2
+  Loader2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -26,9 +20,6 @@ import {
   AreaChart
 } from 'recharts';
 import './App.css';
-import { StockInfoPanel } from './components/StockInfoPanel';
-import { FinancialTerm } from './components/EducationalTooltip';
-import { ChartControls } from './components/ChartControls';
 import { NavigationTabs } from './components/NavigationTabs';
 import { OverviewPage } from './components/pages/OverviewPage';
 import { InvestmentComparisonPage } from './components/pages/InvestmentComparisonPage';
@@ -98,11 +89,11 @@ function App() {
   }, [ticker]);
 
   // Chart control handlers
-  const handleChartTypeChange = (type) => {
+  const handleChartTypeChange = (type: string) => {
     setChartType(type);
   };
 
-  const handleSeriesToggle = (series) => {
+  const handleSeriesToggle = (series: string) => {
     setVisibleSeries(prev => ({
       ...prev,
       [series]: !prev[series]
@@ -110,12 +101,12 @@ function App() {
   };
 
   // Navigation handler
-  const handleTabChange = (tab) => {
+  const handleTabChange = (tab: string) => {
     setActiveTab(tab);
   };
 
   // Calculate risk metrics
-  const calculateRiskMetrics = (dailyReturns, benchmarkReturns) => {
+  const calculateRiskMetrics = (dailyReturns: number[], benchmarkReturns: number[]) => {
     if (!dailyReturns.length || !benchmarkReturns.length) return null;
 
     // Calculate volatility (standard deviation of returns)
