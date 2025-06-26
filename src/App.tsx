@@ -369,35 +369,33 @@ function App() {
         <div className="app-grid">
           {/* Left Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Compact Stock Information - Only for Overview */}
-            {activeTab === 'overview' && (
-              <motion.div 
-                className="glass-card"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="card-body" style={{ padding: '1rem' }}>
-                  {stockInfo ? (
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                        {stockInfo.shortName} ({stockInfo.symbol})
-                      </div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--accent-green)', marginBottom: '0.5rem' }}>
-                        ${stockInfo.currentPrice?.toFixed(2) || 'N/A'}
-                      </div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                        {stockInfo.sector && `${stockInfo.sector} • `}
-                        Market Cap: {stockInfo.marketCap ? `$${(stockInfo.marketCap / 1e9).toFixed(1)}B` : 'N/A'}
-                      </div>
+            {/* Compact Stock Information - Available on All Tabs */}
+            <motion.div 
+              className="glass-card"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="card-body" style={{ padding: '1rem' }}>
+                {stockInfo ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      {stockInfo.shortName} ({stockInfo.symbol})
                     </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Enter ticker to view stock info
+                    <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--accent-green)', marginBottom: '0.5rem' }}>
+                      ${stockInfo.currentPrice?.toFixed(2) || 'N/A'}
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                      {stockInfo.sector && `${stockInfo.sector} • `}
+                      Market Cap: {stockInfo.marketCap ? `$${(stockInfo.marketCap / 1e9).toFixed(1)}B` : 'N/A'}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Enter ticker to view stock info
+                  </div>
+                )}
+              </div>
+            </motion.div>
 
             {/* Input Panel */}
             <motion.div 
