@@ -1,36 +1,41 @@
 # 📈 Financier
 
-> Professional Investment Analysis Platform
+> Investment Analysis Platform
 
-Financier is a comprehensive investment analysis platform that provides professional-grade financial insights, risk assessment, and portfolio performance tracking. Built with modern web technologies, it offers real-time stock data, sophisticated investment calculations, and detailed risk analytics.
+Financier is an investment analysis platform designed to help anyone regardless of experience see what they could have achieved by investing, and to demystify the process of building wealth. With real-time stock data, historical performance validation, and clear risk analytics, Financier empowers users to discover that investing doesn't have to be complicated or intimidating. Whether you're curious about "what if I had invested in Apple five years ago?" or want to compare strategies, Financier makes it easy to learn from the past and make confident decisions for the future.
 
 ## ✨ Features
 
 ### 🎯 Investment Calculator
+
 - **Dollar Cost Averaging (DCA) Analysis**: Calculate returns for systematic investment strategies
 - **Flexible Investment Frequencies**: Daily, weekly, or monthly contributions
 - **Custom Date Ranges**: Analyze performance across any time period
 - **Real-time Stock Data**: Live price feeds and market information
 
 ### 📊 Comprehensive Analysis
+
 - **Investment Performance Tracking**: Monitor portfolio value vs. contributions over time
 - **Benchmark Comparison**: Compare performance against S&P 500 index
 - **Interactive Charts**: Area and line charts with customizable data series
 - **Key Metrics Dashboard**: Total invested, portfolio value, profit/loss, and annualized returns
 
 ### 🏢 Stock Details & Fundamentals
+
 - **Real-time Pricing**: Current stock price with 52-week range visualization
 - **Financial Metrics**: P/E ratio, market cap, dividend yield, volume, and more
 - **Company Overview**: Detailed financial and trading information
 - **Market Data**: Beta, profit margins, and other key indicators
 
 ### ⚠️ Risk Analysis & Management
+
 - **Risk Assessment**: Overall risk level based on volatility metrics
 - **Detailed Risk Metrics**: Volatility, maximum drawdown, Sharpe ratio, and beta
 - **Risk Management Recommendations**: Personalized suggestions for diversification, position sizing, and market timing
 - **Visual Risk Indicators**: Color-coded risk levels and explanatory tooltips
 
 ### 🎨 Modern User Experience
+
 - **Responsive Design**: Works seamlessly across desktop, tablet, and mobile devices
 - **Smooth Animations**: Powered by Framer Motion for enhanced user interactions
 - **Professional UI**: Clean, modern interface with dark theme
@@ -39,20 +44,29 @@ Financier is a comprehensive investment analysis platform that provides professi
 ## 🖼️ Screenshots
 
 ### Investment Overview Dashboard
+
 ![Investment Overview](docs/screenshots/overview-dashboard.png)
-*Main dashboard showing investment results, performance charts, and DCA analysis*
+_Main dashboard showing investment results, performance charts, and DCA analysis_
+
+### Investment Comparison & Portfolio Analysis
+
+![Investment Comparison](docs/screenshots/investment-comparison.png)
+_Multi-asset portfolio comparison with DCA strategy analysis and performance visualization_
 
 ### Stock Details & Fundamentals
+
 ![Stock Details](docs/screenshots/stock-details.png)
-*Comprehensive stock information including financial metrics and company overview*
+_Comprehensive stock information including financial metrics and company overview_
 
 ### Risk Analysis & Assessment
+
 ![Risk Analysis](docs/screenshots/risk-analysis.png)
-*Professional risk assessment with detailed metrics and management recommendations*
+_Professional risk assessment with detailed metrics and management recommendations_
 
 ## 🛠️ Technology Stack
 
 ### Frontend
+
 - **React 19** - Modern React with latest features
 - **TypeScript** - Type-safe development
 - **Vite** - Fast build tool and development server
@@ -61,12 +75,14 @@ Financier is a comprehensive investment analysis platform that provides professi
 - **Lucide React** - Beautiful icon library
 
 ### Backend
+
 - **Node.js** - Server runtime
 - **Express** - Web application framework
 - **Yahoo Finance API** - Real-time financial data
 - **CORS** - Cross-origin resource sharing
 
 ### Development Tools
+
 - **ESLint** - Code linting and formatting
 - **TypeScript ESLint** - TypeScript-specific linting rules
 - **Vite HMR** - Hot module replacement for development
@@ -74,26 +90,31 @@ Financier is a comprehensive investment analysis platform that provides professi
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js (v18 or higher)
 - npm or yarn package manager
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
-   git clone https://github.com/yourusername/financier.git
+   git clone https://github.com/JoeBuydemDips/financier.git
    cd financier
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Start the backend server**
+
    ```bash
    node server/server.js
    ```
+
    The API server will run on `http://localhost:3001`
 
 4. **Start the development server**
@@ -132,6 +153,7 @@ The built application will be in the `dist/` directory.
 ## 🔧 Development
 
 ### Project Structure
+
 ```
 financier/
 ├── src/
@@ -150,6 +172,7 @@ financier/
 ```
 
 ### Available Scripts
+
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run lint` - Run ESLint
@@ -159,10 +182,14 @@ financier/
 
 This project is licensed under the MIT License.
 
+## ⚠️ Disclaimer
+
+This tool is for educational and informational purposes only. It is not intended as financial advice. Please consult a qualified financial advisor before making investment decisions.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-**Built with ❤️ using React, TypeScript, and modern web technologies**
+**Built with cursor and claude code**
