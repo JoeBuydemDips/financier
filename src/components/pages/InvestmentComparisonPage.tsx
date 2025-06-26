@@ -675,29 +675,34 @@ export const InvestmentComparisonPage = () => {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
+          </div>
 
-            <div style={{ display: 'flex', alignItems: 'end' }}>
-              <motion.button
-                className="btn-primary"
-                onClick={calculateDCA}
-                disabled={isCalculating || selectedAssets.length === 0}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                style={{ width: '100%' }}
-              >
-                {isCalculating ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div className="spinner" style={{ width: '16px', height: '16px' }} />
-                    Calculating...
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Calculator size={16} />
-                    Calculate Performance
-                  </div>
-                )}
-              </motion.button>
-            </div>
+          {/* Centered Button Section */}
+          <div style={{ 
+            marginTop: '2rem', 
+            display: 'flex', 
+            justifyContent: 'center' 
+          }}>
+            <motion.button
+              className="btn-primary"
+              onClick={calculateDCA}
+              disabled={isCalculating || selectedAssets.length === 0}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{ width: '80%', maxWidth: '300px' }}
+            >
+              {isCalculating ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="spinner" style={{ width: '16px', height: '16px' }} />
+                  Calculating...
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Calculator size={16} />
+                  Calculate Performance
+                </div>
+              )}
+            </motion.button>
           </div>
         </div>
       </motion.div>

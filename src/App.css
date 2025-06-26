@@ -138,6 +138,8 @@ body {
   font-size: 1rem;
   color: var(--text-primary);
   transition: all 0.2s ease;
+  height: 3.125rem;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
@@ -153,11 +155,57 @@ body {
 
 .form-select {
   appearance: none;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0.875rem 1rem;
+  transition: all 0.2s ease;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238b949e' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 0.75rem center;
   background-repeat: no-repeat;
   background-size: 1.5em 1.5em;
   padding-right: 2.5rem;
+  height: 3.125rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+  background-color: var(--bg-quaternary);
+}
+
+.form-select option {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}
+
+/* Specific styling for date inputs */
+.form-input[type="date"] {
+  position: relative;
+  color: var(--text-primary);
+  font-family: inherit;
+  height: 3.125rem;
+  padding: 0.875rem 1rem;
+  box-sizing: border-box;
+}
+
+.form-input[type="date"]::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
 }
 
 /* Modern Button */
@@ -166,7 +214,7 @@ body {
   background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
   border: none;
   border-radius: var(--radius-sm);
-  padding: 0.875rem 1.5rem;
+  padding: 0;
   font-size: 1rem;
   font-weight: 600;
   color: white;
@@ -174,6 +222,14 @@ body {
   transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  height: 3.125rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0;
+  line-height: 1;
 }
 
 .btn-primary:hover:not(:disabled) {

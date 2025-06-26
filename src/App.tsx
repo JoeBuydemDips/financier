@@ -478,25 +478,33 @@ function App() {
                 />
               </div>
 
-              <motion.button
-                className="btn-primary"
-                onClick={calculateReturns}
-                disabled={loading}
-                whileHover={{ scale: loading ? 1 : 1.02 }}
-                whileTap={{ scale: loading ? 1 : 0.98 }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" style={{ marginRight: '8px', display: 'inline' }} />
-                    Calculating...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp size={20} style={{ marginRight: '8px', display: 'inline' }} />
-                    Calculate Returns
-                  </>
-                )}
-              </motion.button>
+              {/* Centered Button Section */}
+              <div style={{ 
+                marginTop: '2rem', 
+                display: 'flex', 
+                justifyContent: 'center' 
+              }}>
+                <motion.button
+                  className="btn-primary"
+                  onClick={calculateReturns}
+                  disabled={loading}
+                  whileHover={{ scale: loading ? 1 : 1.02 }}
+                  whileTap={{ scale: loading ? 1 : 0.98 }}
+                  style={{ width: '80%', maxWidth: '300px' }}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" style={{ marginRight: '8px', display: 'inline' }} />
+                      Calculating...
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp size={20} style={{ marginRight: '8px', display: 'inline' }} />
+                      Calculate Returns
+                    </>
+                  )}
+                </motion.button>
+              </div>
             </div>
           </motion.div>
           </div>
