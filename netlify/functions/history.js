@@ -1,8 +1,10 @@
 import yahooFinance from 'yahoo-finance2';
+import { fetchHistoryWithFallback, handleAPIError } from './utils/apiClient.js';
 
 // Simple in-memory cache with TTL (will reset on cold starts)
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds (Yahoo data)
+const ALPHA_CACHE_TTL = 60 * 60 * 1000; // 1 hour for Alpha Vantage data (more precious)
 
 // Cache helper functions
 const getCacheKey = (endpoint, params) => {
@@ -11,11 +13,13 @@ const getCacheKey = (endpoint, params) => {
 
 const getFromCache = (key) => {
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`Cache hit for: ${key}`);
-    return cached.data;
-  }
   if (cached) {
+    // Use different TTL based on data source
+    const ttl = cached.data.dataSource === 'alphavantage' ? ALPHA_CACHE_TTL : CACHE_TTL;
+    if (Date.now() - cached.timestamp < ttl) {
+      console.log(`Cache hit for: ${key} (source: ${cached.data.dataSource || 'yahoo'})`);
+      return cached.data;
+    }
     cache.delete(key); // Remove expired cache
   }
   return null;
@@ -26,51 +30,10 @@ const setCache = (key, data) => {
     data,
     timestamp: Date.now()
   });
-  console.log(`Cached: ${key}`);
+  console.log(`Cached: ${key} (source: ${data.dataSource || 'yahoo'})`);
 };
 
-// Error handler for Yahoo Finance API issues
-const handleYahooError = (error, operation) => {
-  console.error(`Yahoo Finance ${operation} error:`, error);
-  
-  if (error.code === 'UND_ERR_CONNECT_TIMEOUT') {
-    return {
-      status: 408,
-      message: 'Yahoo Finance API is currently slow to respond. Please try again in a moment.',
-      type: 'timeout'
-    };
-  }
-  
-  if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-    return {
-      status: 503,
-      message: 'Yahoo Finance API is currently unavailable. Please check your internet connection and try again.',
-      type: 'connection'
-    };
-  }
-  
-  if (error.status === 429) {
-    return {
-      status: 429,
-      message: 'Too many requests to Yahoo Finance API. Please wait a few minutes and try again.',
-      type: 'rate_limit'
-    };
-  }
-  
-  if (error.status === 404) {
-    return {
-      status: 404,
-      message: 'The requested stock symbol was not found. Please check the ticker symbol and try again.',
-      type: 'not_found'
-    };
-  }
-  
-  return {
-    status: 500,
-    message: 'Yahoo Finance API is experiencing issues. Please try again later.',
-    type: 'api_error'
-  };
-};
+// Error handling is now managed by the shared apiClient utility
 
 // Add delay function to avoid rate limiting
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -142,15 +105,25 @@ export const handler = async (event, context) => {
     
     const queryOptions = { period1: startDate, period2: endDate };
     
-    // Fetch both the target stock and S&P 500 for comparison
-    const [stockData, spyData] = await Promise.all([
-      yahooFinance.chart(ticker, queryOptions),
-      yahooFinance.chart('SPY', queryOptions)
+    // Use fallback system to get historical data for both stock and benchmark
+    const [stockData, benchmarkData] = await Promise.all([
+      fetchHistoryWithFallback(ticker, queryOptions, async (symbol, options) => {
+        const data = await yahooFinance.chart(symbol, options);
+        return data;
+      }),
+      fetchHistoryWithFallback('SPY', queryOptions, async (symbol, options) => {
+        const data = await yahooFinance.chart(symbol, options);
+        return data;
+      })
     ]);
 
     const response = {
       stock: stockData.quotes,
-      benchmark: spyData.quotes
+      benchmark: benchmarkData.quotes,
+      dataSource: {
+        stock: stockData.dataSource || 'yahoo',
+        benchmark: benchmarkData.dataSource || 'yahoo'
+      }
     };
 
     // Cache successful response
@@ -162,7 +135,7 @@ export const handler = async (event, context) => {
       body: JSON.stringify(response)
     };
   } catch (error) {
-    const errorResponse = handleYahooError(error, 'historical data');
+    const errorResponse = handleAPIError(error, 'historical data', ticker);
     return {
       statusCode: errorResponse.status,
       headers,

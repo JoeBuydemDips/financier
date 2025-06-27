@@ -1,8 +1,10 @@
 import yahooFinance from 'yahoo-finance2';
+import { fetchHistoryWithFallback, handleAPIError } from './utils/apiClient.js';
 
 // Simple in-memory cache with TTL (will reset on cold starts)
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds (Yahoo data)
+const ALPHA_CACHE_TTL = 60 * 60 * 1000; // 1 hour for Alpha Vantage data (more precious)
 
 // Cache helper functions
 const getCacheKey = (endpoint, params) => {
@@ -11,11 +13,18 @@ const getCacheKey = (endpoint, params) => {
 
 const getFromCache = (key) => {
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`Cache hit for: ${key}`);
-    return cached.data;
-  }
   if (cached) {
+    // Use different TTL based on data source (check if any asset used Alpha Vantage)
+    const hasAlphaVantageData = cached.data && (
+      cached.data.dataSource === 'alphavantage' ||
+      (cached.data.assets && cached.data.assets.some(asset => asset.dataSource === 'alphavantage'))
+    );
+    const ttl = hasAlphaVantageData ? ALPHA_CACHE_TTL : CACHE_TTL;
+    if (Date.now() - cached.timestamp < ttl) {
+      const source = hasAlphaVantageData ? 'alphavantage' : 'yahoo';
+      console.log(`Cache hit for: ${key} (source: ${source})`);
+      return cached.data;
+    }
     cache.delete(key); // Remove expired cache
   }
   return null;
@@ -26,43 +35,15 @@ const setCache = (key, data) => {
     data,
     timestamp: Date.now()
   });
-  console.log(`Cached: ${key}`);
+  const hasAlphaVantageData = data && (
+    data.dataSource === 'alphavantage' ||
+    (data.assets && data.assets.some(asset => asset.dataSource === 'alphavantage'))
+  );
+  const source = hasAlphaVantageData ? 'alphavantage' : 'yahoo';
+  console.log(`Cached: ${key} (source: ${source})`);
 };
 
-// Error handler for Yahoo Finance API issues
-const handleYahooError = (error, operation) => {
-  console.error(`Yahoo Finance ${operation} error:`, error);
-  
-  if (error.code === 'UND_ERR_CONNECT_TIMEOUT') {
-    return {
-      status: 408,
-      message: 'Yahoo Finance API is currently slow to respond. Please try again in a moment.',
-      type: 'timeout'
-    };
-  }
-  
-  if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-    return {
-      status: 503,
-      message: 'Yahoo Finance API is currently unavailable. Please check your internet connection and try again.',
-      type: 'connection'
-    };
-  }
-  
-  if (error.status === 429) {
-    return {
-      status: 429,
-      message: 'Too many requests to Yahoo Finance API. Please wait a few minutes and try again.',
-      type: 'rate_limit'
-    };
-  }
-  
-  return {
-    status: 500,
-    message: 'Yahoo Finance API is experiencing issues. Please try again later.',
-    type: 'api_error'
-  };
-};
+// Error handling is now managed by the shared apiClient utility
 
 // Add delay function to avoid rate limiting
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -256,14 +237,18 @@ export const handler = async (event, context) => {
   try {
     const queryOptions = { period1: startDate, period2: endDate };
     
-    // Get historical data for all assets
+    // Get historical data for all assets using fallback system
     const assetPromises = assets.map(async (asset) => {
       await delay(100); // Small delay between requests
-      const historicalData = await yahooFinance.historical(asset.symbol, queryOptions);
+      
+      const historicalResponse = await fetchHistoryWithFallback(asset.symbol, queryOptions, async (symbol, options) => {
+        const data = await yahooFinance.historical(symbol, options);
+        return { quotes: data };
+      });
       
       // Calculate DCA performance
       const dcaResult = calculateDCAPerformance(
-        historicalData,
+        historicalResponse.quotes,
         startDate,
         endDate,
         initialAmount * (asset.allocation || 1),
@@ -275,14 +260,18 @@ export const handler = async (event, context) => {
         symbol: asset.symbol,
         name: asset.name,
         allocation: asset.allocation || 1,
+        dataSource: historicalResponse.dataSource || 'yahoo',
         ...dcaResult
       };
     });
 
-    // Get benchmark performance
-    const benchmarkData = await yahooFinance.historical('SPY', queryOptions);
+    // Get benchmark performance using fallback system
+    const benchmarkResponse = await fetchHistoryWithFallback('SPY', queryOptions, async (symbol, options) => {
+      const data = await yahooFinance.historical(symbol, options);
+      return { quotes: data };
+    });
     const benchmarkDCA = calculateDCAPerformance(
-      benchmarkData,
+      benchmarkResponse.quotes,
       startDate,
       endDate,
       initialAmount,
@@ -297,10 +286,16 @@ export const handler = async (event, context) => {
       benchmark: {
         symbol: 'SPY',
         name: 'S&P 500',
+        dataSource: benchmarkResponse.dataSource || 'yahoo',
         ...benchmarkDCA
       },
       portfolio: calculatePortfolioPerformance(results),
-      success: true
+      success: true,
+      dataSources: {
+        primary: 'yahoo',
+        fallback: 'alphavantage',
+        usedFallback: results.some(r => r.dataSource === 'alphavantage') || benchmarkResponse.dataSource === 'alphavantage'
+      }
     };
 
     // Cache successful response
@@ -312,7 +307,7 @@ export const handler = async (event, context) => {
       body: JSON.stringify(response)
     };
   } catch (error) {
-    const errorResponse = handleYahooError(error, 'DCA calculation');
+    const errorResponse = handleAPIError(error, 'DCA calculation');
     return {
       statusCode: errorResponse.status,
       headers,

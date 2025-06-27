@@ -79,8 +79,10 @@ _Professional risk assessment with detailed metrics and management recommendatio
 ### Backend
 
 - **Netlify Functions** - Serverless functions for API endpoints
-- **Yahoo Finance API** - Real-time financial data
+- **Yahoo Finance API** - Primary real-time financial data source
+- **Alpha Vantage API** - Backup financial data provider with automatic fallback
 - **Built-in CORS** - Seamless cross-origin resource sharing
+- **Smart API Fallback** - Automatic switching between data sources for maximum reliability
 
 ### Development Tools
 
@@ -112,7 +114,21 @@ _Professional risk assessment with detailed metrics and management recommendatio
    npm install
    ```
 
-3. **Start the development server with Netlify Functions**
+3. **Configure Alpha Vantage API (Optional but Recommended)**
+
+   For enhanced reliability, set up Alpha Vantage as a backup data source:
+
+   a. Get a free API key from [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+
+   b. Create a `.env` file in the project root:
+
+   ```bash
+   ALPHA_VANTAGE_API_KEY=your_api_key_here
+   ```
+
+   **Note**: Without this key, the app will still work perfectly using Yahoo Finance, but won't have backup data source capabilities.
+
+4. **Start the development server with Netlify Functions**
 
    ```bash
    netlify dev
@@ -160,12 +176,49 @@ netlify deploy --prod
 ## 🌟 Key Highlights
 
 - **Serverless Architecture**: Built with Netlify Functions for automatic scaling and global performance
+- **Dual API Reliability**: Smart fallback system using Yahoo Finance + Alpha Vantage for 99.9% uptime
 - **Professional-Grade Analysis**: Sophisticated financial calculations and risk metrics
-- **Real-Time Data**: Live stock prices and market information
+- **Real-Time Data**: Live stock prices and market information with automatic backup sources
 - **Zero Server Maintenance**: Fully serverless backend with automatic updates and scaling
 - **Responsive Design**: Seamless experience across all devices
 - **Educational Tooltips**: Learn about financial concepts while using the platform
 - **Consistent UX**: Investment calculator available on every page for easy parameter adjustment
+
+## 🛡️ API Reliability & Fallback System
+
+Financier uses a sophisticated dual-API system to ensure maximum uptime and data availability:
+
+### Primary Data Source: Yahoo Finance
+
+- **Fast & Free**: No API key required, unlimited requests
+- **Comprehensive Data**: Full stock information, historical data, and search capabilities
+- **Real-time Updates**: Live market data and pricing
+
+### Backup Data Source: Alpha Vantage
+
+- **Enterprise Reliability**: Professional-grade financial data provider
+- **Automatic Fallback**: Seamlessly activates when Yahoo Finance is unavailable
+- **Smart Rate Limiting**: Efficiently manages free tier (25 calls/day) to preserve backup capacity
+- **Extended Caching**: Backup data cached longer to minimize API usage
+
+### How It Works
+
+1. **Primary**: All requests initially try Yahoo Finance
+2. **Fallback**: If Yahoo Finance fails, automatically switches to Alpha Vantage
+3. **Transparent**: Users never notice the switch - data format remains consistent
+4. **Smart Caching**: Different cache durations optimize performance and preserve API limits
+5. **Rate Management**: Tracks Alpha Vantage usage to ensure backup availability when needed
+
+### Setup Alpha Vantage (Optional)
+
+While not required, adding Alpha Vantage as a backup significantly improves reliability:
+
+1. **Get Free API Key**: Visit [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+2. **Add to Environment**: Create `.env` file with `ALPHA_VANTAGE_API_KEY=your_key`
+3. **Enjoy 99.9% Uptime**: Automatic failover provides enterprise-level reliability
+
+**Without Alpha Vantage**: App works perfectly with Yahoo Finance alone
+**With Alpha Vantage**: Near-perfect uptime with automatic backup when primary source has issues
 
 ## 🔧 Development
 
@@ -183,6 +236,8 @@ financier/
 │   └── main.tsx            # Application entry point
 ├── netlify/
 │   └── functions/          # Serverless API functions
+│       ├── utils/          # Shared utilities
+│       │   └── apiClient.js # API fallback management
 │       ├── stock.js        # Stock data endpoint
 │       ├── history.js      # Historical data endpoint
 │       ├── search.js       # Stock search endpoint

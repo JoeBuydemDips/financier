@@ -409,7 +409,7 @@ function App() {
                 </label>
                 <input
                   type="text"
-                  className="form-input form-select"
+                  className="form-input"
                   value={ticker}
                   onChange={(e) => setTicker(e.target.value)}
                   placeholder="e.g., SPY, AAPL, TSLA"
