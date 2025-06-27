@@ -1,10 +1,10 @@
 import yahooFinance from 'yahoo-finance2';
-import { fetchHistoryWithFallback, handleAPIError } from './utils/apiClient.js';
+import { fetchHistoryWithFallback, handleAPIError, createCacheHeaders } from './utils/apiClient.js';
 
 // Simple in-memory cache with TTL (will reset on cold starts)
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds (Yahoo data)
-const ALPHA_CACHE_TTL = 60 * 60 * 1000; // 1 hour for Alpha Vantage data (more precious)
+const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours for DCA calculations (computation intensive)
+const ALPHA_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours for Alpha Vantage data (more precious)
 
 // Cache helper functions
 const getCacheKey = (endpoint, params) => {
@@ -301,9 +301,19 @@ export const handler = async (event, context) => {
     // Cache successful response
     setCache(cacheKey, response);
     
+    // Add HTTP cache headers for CDN caching (DCA calculations are expensive and can be cached long)
+    const hasAlphaVantageData = response.dataSources.usedFallback;
+    const cacheHeaders = createCacheHeaders(
+      hasAlphaVantageData ? 'alphavantage' : 'yahoo', 
+      hasAlphaVantageData ? 14400 : 7200 // 4hrs for AV, 2hrs for Yahoo
+    );
+    
     return {
       statusCode: 200,
-      headers,
+      headers: {
+        ...headers,
+        ...cacheHeaders
+      },
       body: JSON.stringify(response)
     };
   } catch (error) {

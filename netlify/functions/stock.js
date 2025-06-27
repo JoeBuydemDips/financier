@@ -1,10 +1,10 @@
 import yahooFinance from 'yahoo-finance2';
-import { fetchStockWithFallback, handleAPIError } from './utils/apiClient.js';
+import { fetchStockWithFallback, handleAPIError, createCacheHeaders } from './utils/apiClient.js';
 
 // Simple in-memory cache with TTL (will reset on cold starts)
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds (Yahoo data)
-const ALPHA_CACHE_TTL = 60 * 60 * 1000; // 1 hour for Alpha Vantage data (more precious)
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes for Yahoo data (increased for production)
+const ALPHA_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours for Alpha Vantage data (more precious)
 
 // Cache helper functions
 const getCacheKey = (endpoint, params) => {
@@ -126,9 +126,18 @@ export const handler = async (event, context) => {
     // Cache successful response
     setCache(cacheKey, stockInfo);
     
+    // Add HTTP cache headers for CDN caching
+    const cacheHeaders = createCacheHeaders(
+      stockInfo.dataSource || 'yahoo', 
+      stockInfo.dataSource === 'alphavantage' ? 7200 : 1800 // 2hrs for AV, 30min for Yahoo
+    );
+    
     return {
       statusCode: 200,
-      headers,
+      headers: {
+        ...headers,
+        ...cacheHeaders
+      },
       body: JSON.stringify(stockInfo)
     };
   } catch (error) {

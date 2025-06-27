@@ -15,6 +15,9 @@ const getAlphaClient = () => {
 let alphaVantageCallCount = 0;
 let alphaVantageResetTime = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
 
+// Request deduplication - prevent multiple identical requests
+const pendingRequests = new Map();
+
 // Check if we can make Alpha Vantage API calls
 const canUseAlphaVantage = () => {
   // First check if API key is available
@@ -37,6 +40,32 @@ const canUseAlphaVantage = () => {
 const trackAlphaVantageCall = () => {
   alphaVantageCallCount++;
   console.log(`Alpha Vantage calls used: ${alphaVantageCallCount}/25`);
+};
+
+// Create unique request key for deduplication
+const createRequestKey = (type, params) => {
+  return `${type}:${JSON.stringify(params)}`;
+};
+
+// Request deduplication wrapper
+const deduplicateRequest = async (requestKey, requestFn) => {
+  // If request is already pending, wait for it
+  if (pendingRequests.has(requestKey)) {
+    console.log(`Deduplicating request: ${requestKey}`);
+    return await pendingRequests.get(requestKey);
+  }
+  
+  // Make new request and store promise
+  const requestPromise = requestFn();
+  pendingRequests.set(requestKey, requestPromise);
+  
+  try {
+    const result = await requestPromise;
+    return result;
+  } finally {
+    // Clean up pending request
+    pendingRequests.delete(requestKey);
+  }
 };
 
 // Map Alpha Vantage stock data to Yahoo Finance format
@@ -100,152 +129,164 @@ const mapAlphaVantageToYahooSearch = (searchData) => {
     }));
 };
 
-// Fetch stock data with fallback logic
+// Fetch stock data with fallback logic and deduplication
 const fetchStockWithFallback = async (ticker, yahooFetcher) => {
-  try {
-    // Try Yahoo Finance first
-    console.log(`Fetching stock data for ${ticker} from Yahoo Finance...`);
-    const yahooResult = await yahooFetcher(ticker);
-    return {
-      ...yahooResult,
-      dataSource: 'yahoo'
-    };
-  } catch (yahooError) {
-    console.log(`Yahoo Finance failed for ${ticker}:`, yahooError.message);
-    
-    // Check if we can use Alpha Vantage
-    if (!canUseAlphaVantage()) {
-      throw new Error('Alpha Vantage rate limit exceeded. Please try again later.');
-    }
-    
+  const requestKey = createRequestKey('stock', { ticker });
+  
+  return await deduplicateRequest(requestKey, async () => {
     try {
-      console.log(`Falling back to Alpha Vantage for ${ticker}...`);
-      
-      // Get Alpha Vantage client and make both API calls
-      const alphaClient = getAlphaClient();
-      if (!alphaClient) {
-        throw new Error('Alpha Vantage API key not configured');
-      }
-      
-      const [overview, quote] = await Promise.all([
-        alphaClient.fundamental.company_overview(ticker),
-        alphaClient.data.quote(ticker)
-      ]);
-      
-      trackAlphaVantageCall(); // Track 2 calls
-      trackAlphaVantageCall();
-      
-      const mappedData = mapAlphaVantageToYahooStock(overview, quote);
-      
-      if (!mappedData) {
-        throw new Error('No data available from Alpha Vantage');
-      }
-      
-      return mappedData;
-    } catch (alphaError) {
-      console.log(`Alpha Vantage also failed for ${ticker}:`, alphaError.message);
-      throw new Error(`Both APIs failed. Yahoo: ${yahooError.message}, Alpha Vantage: ${alphaError.message}`);
-    }
-  }
-};
-
-// Fetch historical data with fallback logic
-const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
-  try {
-    // Try Yahoo Finance first
-    console.log(`Fetching historical data for ${ticker} from Yahoo Finance...`);
-    const yahooResult = await yahooFetcher(ticker, options);
-    return {
-      ...yahooResult,
-      dataSource: 'yahoo'
-    };
-  } catch (yahooError) {
-    console.log(`Yahoo Finance failed for ${ticker} history:`, yahooError.message);
-    
-    // Check if we can use Alpha Vantage
-    if (!canUseAlphaVantage()) {
-      throw new Error('Alpha Vantage rate limit exceeded. Please try again later.');
-    }
-    
-    try {
-      console.log(`Falling back to Alpha Vantage for ${ticker} history...`);
-      
-      // Get Alpha Vantage client and fetch daily time series
-      const alphaClient = getAlphaClient();
-      if (!alphaClient) {
-        throw new Error('Alpha Vantage API key not configured');
-      }
-      
-      const timeSeriesData = await alphaClient.data.daily_adjusted(ticker, 'full');
-      trackAlphaVantageCall();
-      
-      const mappedData = mapAlphaVantageToYahooHistory(timeSeriesData);
-      
-      if (!mappedData.length) {
-        throw new Error('No historical data available from Alpha Vantage');
-      }
-      
-      // Filter data based on date range if provided
-      let filteredData = mappedData;
-      if (options.period1 && options.period2) {
-        const startDate = new Date(options.period1);
-        const endDate = new Date(options.period2);
-        filteredData = mappedData.filter(item => 
-          item.date >= startDate && item.date <= endDate
-        );
-      }
-      
+      // Try Yahoo Finance first
+      console.log(`Fetching stock data for ${ticker} from Yahoo Finance...`);
+      const yahooResult = await yahooFetcher(ticker);
       return {
-        quotes: filteredData,
-        dataSource: 'alphavantage'
+        ...yahooResult,
+        dataSource: 'yahoo'
       };
-    } catch (alphaError) {
-      console.log(`Alpha Vantage also failed for ${ticker} history:`, alphaError.message);
-      throw new Error(`Both APIs failed. Yahoo: ${yahooError.message}, Alpha Vantage: ${alphaError.message}`);
-    }
-  }
-};
-
-// Fetch search results with fallback logic
-const fetchSearchWithFallback = async (query, yahooFetcher) => {
-  try {
-    // Try Yahoo Finance first
-    console.log(`Searching for "${query}" using Yahoo Finance...`);
-    const yahooResult = await yahooFetcher(query);
-    return yahooResult.map(item => ({
-      ...item,
-      dataSource: 'yahoo'
-    }));
-  } catch (yahooError) {
-    console.log(`Yahoo Finance search failed for "${query}":`, yahooError.message);
-    
-    // Check if we can use Alpha Vantage
-    if (!canUseAlphaVantage()) {
-      throw new Error('Alpha Vantage rate limit exceeded. Please try again later.');
-    }
-    
-    try {
-      console.log(`Falling back to Alpha Vantage search for "${query}"...`);
+    } catch (yahooError) {
+      console.log(`Yahoo Finance failed for ${ticker}:`, yahooError.message);
       
-      const alphaClient = getAlphaClient();
-      if (!alphaClient) {
-        throw new Error('Alpha Vantage API key not configured');
+      // Check if we can use Alpha Vantage
+      if (!canUseAlphaVantage()) {
+        throw new Error('Primary data source unavailable and backup API limit reached. Please try again later.');
       }
       
-      const searchData = await alphaClient.data.search(query);
-      trackAlphaVantageCall();
-      
-      const mappedData = mapAlphaVantageToYahooSearch(searchData);
-      
-      return mappedData.map(item => ({
-        ...item,
-        dataSource: 'alphavantage'
-      }));
-    } catch (alphaError) {
-      console.log(`Alpha Vantage search also failed for "${query}":`, alphaError.message);
-      throw new Error(`Both APIs failed. Yahoo: ${yahooError.message}, Alpha Vantage: ${alphaError.message}`);
+      try {
+        console.log(`Falling back to Alpha Vantage for ${ticker}...`);
+        
+        // Get Alpha Vantage client and make both API calls
+        const alphaClient = getAlphaClient();
+        if (!alphaClient) {
+          throw new Error('Alpha Vantage API key not configured');
+        }
+        
+        const [overview, quote] = await Promise.all([
+          alphaClient.fundamental.company_overview(ticker),
+          alphaClient.data.quote(ticker)
+        ]);
+        
+        trackAlphaVantageCall(); // Track 2 calls
+        trackAlphaVantageCall();
+        
+        const mappedData = mapAlphaVantageToYahooStock(overview, quote);
+        
+        if (!mappedData) {
+          throw new Error('No data available from Alpha Vantage');
+        }
+        
+        return mappedData;
+      } catch (alphaError) {
+        console.log(`Alpha Vantage also failed for ${ticker}:`, alphaError.message);
+        throw new Error(`Both data sources are currently unavailable. Please try again in a few minutes.`);
+      }
     }
-  }
+  });
+};
+
+// Fetch historical data with fallback logic and deduplication
+const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
+  const requestKey = createRequestKey('history', { ticker, options });
+  
+  return await deduplicateRequest(requestKey, async () => {
+    try {
+      // Try Yahoo Finance first
+      console.log(`Fetching historical data for ${ticker} from Yahoo Finance...`);
+      const yahooResult = await yahooFetcher(ticker, options);
+      return {
+        ...yahooResult,
+        dataSource: 'yahoo'
+      };
+    } catch (yahooError) {
+      console.log(`Yahoo Finance failed for ${ticker} history:`, yahooError.message);
+      
+      // Check if we can use Alpha Vantage
+      if (!canUseAlphaVantage()) {
+        throw new Error('Primary data source unavailable and backup API limit reached. Please try again later.');
+      }
+      
+      try {
+        console.log(`Falling back to Alpha Vantage for ${ticker} history...`);
+        
+        // Get Alpha Vantage client and fetch daily time series
+        const alphaClient = getAlphaClient();
+        if (!alphaClient) {
+          throw new Error('Alpha Vantage API key not configured');
+        }
+        
+        const timeSeriesData = await alphaClient.data.daily_adjusted(ticker, 'full');
+        trackAlphaVantageCall();
+        
+        const mappedData = mapAlphaVantageToYahooHistory(timeSeriesData);
+        
+        if (!mappedData.length) {
+          throw new Error('No historical data available from Alpha Vantage');
+        }
+        
+        // Filter data based on date range if provided
+        let filteredData = mappedData;
+        if (options.period1 && options.period2) {
+          const startDate = new Date(options.period1);
+          const endDate = new Date(options.period2);
+          filteredData = mappedData.filter(item => 
+            item.date >= startDate && item.date <= endDate
+          );
+        }
+        
+        return {
+          quotes: filteredData,
+          dataSource: 'alphavantage'
+        };
+      } catch (alphaError) {
+        console.log(`Alpha Vantage also failed for ${ticker} history:`, alphaError.message);
+        throw new Error(`Both data sources are currently unavailable. Please try again in a few minutes.`);
+      }
+    }
+  });
+};
+
+// Fetch search results with fallback logic and deduplication
+const fetchSearchWithFallback = async (query, yahooFetcher) => {
+  const requestKey = createRequestKey('search', { query });
+  
+  return await deduplicateRequest(requestKey, async () => {
+    try {
+      // Try Yahoo Finance first
+      console.log(`Searching for "${query}" using Yahoo Finance...`);
+      const yahooResult = await yahooFetcher(query);
+      return yahooResult.map(item => ({
+        ...item,
+        dataSource: 'yahoo'
+      }));
+    } catch (yahooError) {
+      console.log(`Yahoo Finance search failed for "${query}":`, yahooError.message);
+      
+      // Check if we can use Alpha Vantage
+      if (!canUseAlphaVantage()) {
+        throw new Error('Primary data source unavailable and backup API limit reached. Please try again later.');
+      }
+      
+      try {
+        console.log(`Falling back to Alpha Vantage search for "${query}"...`);
+        
+        const alphaClient = getAlphaClient();
+        if (!alphaClient) {
+          throw new Error('Alpha Vantage API key not configured');
+        }
+        
+        const searchData = await alphaClient.data.search(query);
+        trackAlphaVantageCall();
+        
+        const mappedData = mapAlphaVantageToYahooSearch(searchData);
+        
+        return mappedData.map(item => ({
+          ...item,
+          dataSource: 'alphavantage'
+        }));
+      } catch (alphaError) {
+        console.log(`Alpha Vantage search also failed for "${query}":`, alphaError.message);
+        throw new Error(`Both data sources are currently unavailable. Please try again in a few minutes.`);
+      }
+    }
+  });
 };
 
 // Enhanced error handler that includes fallback information
@@ -253,18 +294,26 @@ const handleAPIError = (error, operation, ticker = '') => {
   console.error(`API ${operation} error for ${ticker}:`, error);
   
   // Determine error type and provide appropriate user message
-  if (error.message.includes('rate limit')) {
+  if (error.message.includes('rate limit') || error.message.includes('Too Many Requests')) {
     return {
       status: 429,
-      message: 'API rate limit exceeded. Please try again in a few minutes.',
+      message: 'Data sources are busy. Please try again in a few minutes. Consider adding Alpha Vantage backup for better reliability.',
       type: 'rate_limit'
     };
   }
   
-  if (error.message.includes('Both APIs failed')) {
+  if (error.message.includes('backup API limit reached')) {
     return {
       status: 503,
-      message: 'Both primary and backup data sources are currently unavailable. Please try again later.',
+      message: 'Primary data source is down and backup limit reached. Service will restore automatically. Please try again later.',
+      type: 'backup_limit'
+    };
+  }
+  
+  if (error.message.includes('Both data sources are currently unavailable')) {
+    return {
+      status: 503,
+      message: 'All data sources are temporarily unavailable. Please try again in a few minutes.',
       type: 'all_apis_down'
     };
   }
@@ -300,6 +349,17 @@ const handleAPIError = (error, operation, ticker = '') => {
   };
 };
 
+// Create cache headers for HTTP caching
+const createCacheHeaders = (dataSource, cacheSeconds) => {
+  const maxAge = dataSource === 'alphavantage' ? cacheSeconds * 2 : cacheSeconds; // Cache AV data longer
+  
+  return {
+    'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}`,
+    'ETag': `"${Date.now()}-${dataSource}"`,
+    'Vary': 'Accept-Encoding'
+  };
+};
+
 export {
   fetchStockWithFallback,
   fetchHistoryWithFallback,
@@ -308,5 +368,6 @@ export {
   canUseAlphaVantage,
   mapAlphaVantageToYahooStock,
   mapAlphaVantageToYahooHistory,
-  mapAlphaVantageToYahooSearch
+  mapAlphaVantageToYahooSearch,
+  createCacheHeaders
 }; 
