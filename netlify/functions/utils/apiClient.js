@@ -1,5 +1,6 @@
 // Shared utilities for API fallback management
 import alphaVantage from 'alphavantage';
+import yahooFinance from 'yahoo-finance2';
 
 let alpha = null;
 
@@ -39,12 +40,30 @@ const canUseAlphaVantage = () => {
 // Track Alpha Vantage API usage
 const trackAlphaVantageCall = () => {
   alphaVantageCallCount++;
-  console.log(`Alpha Vantage calls used: ${alphaVantageCallCount}/25`);
+  const timeUntilReset = Math.ceil((alphaVantageResetTime - Date.now()) / (1000 * 60 * 60)); // hours
+  console.log(`Alpha Vantage calls used: ${alphaVantageCallCount}/25. Reset in ${timeUntilReset} hours.`);
+  
+  // Log warning when approaching limit
+  if (alphaVantageCallCount >= 20) {
+    console.warn(`WARNING: Alpha Vantage API approaching rate limit (${alphaVantageCallCount}/25 calls used)`);
+  }
 };
 
 // Export function for external tracking (used by stock.js hybrid approach)
 const trackAlphaVantageCallExternal = () => {
   trackAlphaVantageCall();
+};
+
+// Get current API status for debugging
+const getApiStatus = () => {
+  const timeUntilReset = Math.ceil((alphaVantageResetTime - Date.now()) / (1000 * 60 * 60)); // hours
+  return {
+    alphaVantageCallsUsed: alphaVantageCallCount,
+    alphaVantageCallsRemaining: 25 - alphaVantageCallCount,
+    alphaVantageResetInHours: timeUntilReset,
+    alphaVantageApiKeyConfigured: !!process.env.ALPHA_VANTAGE_API_KEY,
+    canUseAlphaVantage: canUseAlphaVantage()
+  };
 };
 
 // Create unique request key for deduplication
@@ -207,15 +226,17 @@ const fetchStockWithFallback = async (ticker, yahooFetcher) => {
     if (isCrypto) {
       // Check if we can use Alpha Vantage
       if (!canUseAlphaVantage()) {
-        throw new Error('Crypto data source unavailable - API limit reached. Please try again later.');
+        console.log(`Alpha Vantage rate limit reached (${alphaVantageCallCount}/25 calls used). Falling back to Yahoo Finance...`);
+        throw new Error('RATE_LIMIT_REACHED');
       }
       
       try {
-        console.log(`Fetching crypto data for ${ticker} from Alpha Vantage (primary)...`);
+        console.log(`Fetching crypto data for ${ticker} from Alpha Vantage (primary)... [Call ${alphaVantageCallCount + 1}/25]`);
         
         const alphaClient = getAlphaClient();
         if (!alphaClient) {
-          throw new Error('Alpha Vantage API key not configured');
+          console.log('Alpha Vantage API key not configured in environment variables');
+          throw new Error('API_KEY_MISSING');
         }
         
         // Convert BTC-USD to BTC for Alpha Vantage API
@@ -231,19 +252,63 @@ const fetchStockWithFallback = async (ticker, yahooFetcher) => {
         
         return mappedData;
       } catch (alphaError) {
-        console.log(`Alpha Vantage failed for crypto ${ticker}:`, alphaError.message);
+        const isRateLimit = alphaError.message === 'RATE_LIMIT_REACHED';
+        const isApiKeyMissing = alphaError.message === 'API_KEY_MISSING';
         
-        // Fallback to Yahoo Finance for crypto (accepts CSP risk)
+        if (isApiKeyMissing) {
+          console.log(`Alpha Vantage API key missing for crypto ${ticker}. Check Netlify environment variables.`);
+        } else if (isRateLimit) {
+          console.log(`Alpha Vantage rate limit reached for crypto ${ticker}. Using Yahoo Finance fallback.`);
+        } else {
+          console.log(`Alpha Vantage API error for crypto ${ticker}:`, alphaError.message);
+        }
+        
+        // Fallback to Yahoo Finance for crypto (use quote() only - accepts CSP risk)
         try {
           console.log(`Falling back to Yahoo Finance for crypto ${ticker}...`);
-          const yahooResult = await yahooFetcher(ticker);
+          // For crypto, only use quote() method - don't use quoteSummary() which fails
+          const quote = await yahooFinance.quote(ticker);
+          
+          if (!quote || quote.regularMarketPrice === undefined) {
+            throw new Error(`No quote data found for ${ticker}`);
+          }
+          
+          const yahooResult = {
+            symbol: quote.symbol,
+            shortName: quote.shortName || quote.displayName || ticker.replace('-USD', ''),
+            currentPrice: quote.regularMarketPrice,
+            currency: quote.currency || 'USD',
+            volume: quote.regularMarketVolume,
+            avgVolume: quote.averageDailyVolume10Day,
+            marketCap: quote.marketCap || null,
+            peRatio: null, // Not available for crypto
+            dividendYield: null, // Not available for crypto
+            beta: null, // Not available for crypto
+            fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh,
+            fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
+            sector: null, // Not available for crypto
+            industry: null, // Not available for crypto
+            profitMargins: null, // Not available for crypto
+            bookValue: null, // Not available for crypto
+            priceToBook: null, // Not available for crypto
+            quoteType: quote.quoteType || 'CRYPTOCURRENCY'
+          };
+          
           return {
             ...yahooResult,
             dataSource: 'yahoo-fallback'
           };
         } catch (yahooError) {
           console.log(`Yahoo Finance also failed for crypto ${ticker}:`, yahooError.message);
-          throw new Error(`Crypto data sources are currently unavailable. Please try again in a few minutes.`);
+          
+          // Provide specific error messages based on the original Alpha Vantage error
+          if (isApiKeyMissing) {
+            throw new Error(`Crypto data unavailable: Alpha Vantage API key not configured. Contact administrator.`);
+          } else if (isRateLimit) {
+            throw new Error(`Crypto data temporarily unavailable: API rate limit reached. Please try again in a few hours.`);
+          } else {
+            throw new Error(`Crypto data sources are currently unavailable. Please try again in a few minutes.`);
+          }
         }
       }
     }
@@ -308,15 +373,17 @@ const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
     if (isCrypto) {
       // Check if we can use Alpha Vantage
       if (!canUseAlphaVantage()) {
-        throw new Error('Crypto data source unavailable - API limit reached. Please try again later.');
+        console.log(`Alpha Vantage rate limit reached (${alphaVantageCallCount}/25 calls used). Falling back to Yahoo Finance for history...`);
+        throw new Error('RATE_LIMIT_REACHED');
       }
       
       try {
-        console.log(`Fetching crypto history for ${ticker} from Alpha Vantage (primary)...`);
+        console.log(`Fetching crypto history for ${ticker} from Alpha Vantage (primary)... [Call ${alphaVantageCallCount + 1}/25]`);
         
         const alphaClient = getAlphaClient();
         if (!alphaClient) {
-          throw new Error('Alpha Vantage API key not configured');
+          console.log('Alpha Vantage API key not configured in environment variables for history fetch');
+          throw new Error('API_KEY_MISSING');
         }
         
         // Convert BTC-USD to BTC for Alpha Vantage API
@@ -324,16 +391,7 @@ const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
         const cryptoData = await alphaClient.crypto.daily(cryptoSymbol, 'USD');
         trackAlphaVantageCall();
         
-        // Debug: Log the actual structure returned by Alpha Vantage
-        console.log(`Alpha Vantage crypto response keys for ${cryptoSymbol}:`, Object.keys(cryptoData || {}));
-        if (cryptoData) {
-          console.log(`First few keys in crypto data:`, Object.keys(cryptoData).slice(0, 5));
-          if (cryptoData['Time Series (Digital Currency Daily)']) {
-            console.log(`Found expected key: Time Series (Digital Currency Daily)`);
-          } else {
-            console.log(`Available keys:`, Object.keys(cryptoData));
-          }
-        }
+
         
         const mappedData = mapAlphaVantageCryptoHistoryToYahoo(cryptoData);
         
@@ -356,19 +414,58 @@ const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
           dataSource: 'alphavantage'
         };
       } catch (alphaError) {
-        console.log(`Alpha Vantage failed for crypto ${ticker} history:`, alphaError.message);
+        const isRateLimit = alphaError.message === 'RATE_LIMIT_REACHED';
+        const isApiKeyMissing = alphaError.message === 'API_KEY_MISSING';
         
-        // Fallback to Yahoo Finance for crypto (accepts CSP risk)
+        if (isApiKeyMissing) {
+          console.log(`Alpha Vantage API key missing for crypto ${ticker} history. Check Netlify environment variables.`);
+        } else if (isRateLimit) {
+          console.log(`Alpha Vantage rate limit reached for crypto ${ticker} history. Using Yahoo Finance fallback.`);
+        } else {
+          console.log(`Alpha Vantage API error for crypto ${ticker} history:`, alphaError.message);
+        }
+        
+        // Fallback to Yahoo Finance for crypto (use chart() method - accepts CSP risk)
         try {
           console.log(`Falling back to Yahoo Finance for crypto ${ticker} history...`);
-          const yahooResult = await yahooFetcher(ticker, options);
+          // For crypto, use chart() method directly instead of complex yahoo fetcher
+          // Convert date strings to Date objects for Yahoo Finance
+          const chartOptions = {
+            period1: new Date(options.period1),
+            period2: new Date(options.period2),
+            interval: '1d'
+          };
+          const chartData = await yahooFinance.chart(ticker, chartOptions);
+          
+          if (!chartData || !chartData.quotes || chartData.quotes.length === 0) {
+            throw new Error(`No historical data found for ${ticker}`);
+          }
+          
+          // Map chart data to expected format
+          const quotes = chartData.quotes.map(quote => ({
+            date: new Date(quote.date),
+            open: quote.open,
+            high: quote.high,
+            low: quote.low,
+            close: quote.close,
+            volume: quote.volume
+          }));
+          
           return {
-            ...yahooResult,
+            quotes,
             dataSource: 'yahoo-fallback'
           };
         } catch (yahooError) {
           console.log(`Yahoo Finance also failed for crypto ${ticker} history:`, yahooError.message);
-          throw new Error(`Crypto data sources are currently unavailable. Please try again in a few minutes.`);
+          
+          // Provide specific error messages based on the original Alpha Vantage error
+          if (isApiKeyMissing) {
+            throw new Error(`Crypto historical data unavailable: Alpha Vantage API key not configured. Contact administrator.`);
+          } else if (isRateLimit) {
+            throw new Error(`Crypto historical data temporarily unavailable: API rate limit reached. Please try again in a few hours.`);
+          } else {
+            throw new Error(`Crypto data sources are currently unavailable. Please try again in a few minutes.`);
+          }
         }
       }
     }
@@ -553,6 +650,7 @@ export {
   handleAPIError,
   canUseAlphaVantage,
   trackAlphaVantageCallExternal,
+  getApiStatus,
   isCryptoSymbol,
   convertCryptoSymbol,
   mapAlphaVantageToYahooStock,

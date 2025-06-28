@@ -258,15 +258,20 @@ export const InvestmentComparisonPage = () => {
         <div className="card-body">
           {/* Search Bar */}
           <div className="form-group">
-            <label className="form-label">Search & Add Assets to Compare</label>
+            <label className="form-label" htmlFor="asset-search-input">Search & Add Assets to Compare</label>
             <div style={{ position: 'relative' }}>
               <input
+                id="asset-search-input"
+                name="assetSearch"
                 type="text"
                 className="form-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Type to search: AAPL, BTC-USD, SPY, TSLA..."
                 style={{ paddingRight: '2.5rem' }}
+                autoComplete="off"
+                role="searchbox"
+                aria-label="Search for assets to compare"
               />
               <Search size={16} style={{ 
                 position: 'absolute', 

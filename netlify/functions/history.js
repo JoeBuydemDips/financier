@@ -122,11 +122,23 @@ export const handler = async (event, context) => {
     // Use fallback system to get historical data for both stock and benchmark
     const [stockData, benchmarkData] = await Promise.all([
       fetchHistoryWithFallback(ticker, queryOptions, async (symbol, options) => {
-        const data = await yahooFinance.chart(symbol, options);
+        // Convert date strings to Date objects for Yahoo Finance
+        const chartOptions = {
+          period1: new Date(options.period1),
+          period2: new Date(options.period2),
+          interval: '1d'
+        };
+        const data = await yahooFinance.chart(symbol, chartOptions);
         return data;
       }),
       fetchHistoryWithFallback('SPY', queryOptions, async (symbol, options) => {
-        const data = await yahooFinance.chart(symbol, options);
+        // Convert date strings to Date objects for Yahoo Finance
+        const chartOptions = {
+          period1: new Date(options.period1),
+          period2: new Date(options.period2),
+          interval: '1d'
+        };
+        const data = await yahooFinance.chart(symbol, chartOptions);
         return data;
       })
     ]);

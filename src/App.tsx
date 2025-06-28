@@ -403,36 +403,45 @@ function App() {
             </div>
             <div className="card-body">
               <div className="form-group">
-                <label className="form-label">
+                <label className="form-label" htmlFor="ticker-input">
                   <BarChart3 size={16} style={{ marginRight: '8px', display: 'inline' }} />
                   Ticker Symbol
                 </label>
                 <input
+                  id="ticker-input"
+                  name="ticker"
                   type="text"
                   className="form-input"
                   value={ticker}
                   onChange={(e) => setTicker(e.target.value)}
                   placeholder="e.g., SPY, AAPL, TSLA"
+                  autoComplete="off"
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">
+                <label className="form-label" htmlFor="contribution-input">
                   <DollarSign size={16} style={{ marginRight: '8px', display: 'inline' }} />
                   Contribution Amount
                 </label>
                 <input
+                  id="contribution-input"
+                  name="contribution"
                   type="number"
                   className="form-input"
                   value={contribution}
                   onChange={(e) => setContribution(e.target.value)}
                   placeholder="100"
+                  min="0"
+                  step="0.01"
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Investment Frequency</label>
+                <label className="form-label" htmlFor="cadence-select">Investment Frequency</label>
                 <select
+                  id="cadence-select"
+                  name="cadence"
                   className="form-input form-select"
                   value={cadence}
                   onChange={(e) => setCadence(e.target.value)}
@@ -444,11 +453,13 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">
+                <label className="form-label" htmlFor="start-date-input">
                   <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
                   Start Date
                 </label>
                 <input
+                  id="start-date-input"
+                  name="startDate"
                   type="date"
                   className="form-input"
                   value={startDate}
@@ -457,11 +468,13 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">
+                <label className="form-label" htmlFor="end-date-input">
                   <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
                   End Date
                 </label>
                 <input
+                  id="end-date-input"
+                  name="endDate"
                   type="date"
                   className="form-input"
                   value={endDate}
@@ -502,9 +515,10 @@ function App() {
 
           {/* Main Content Area */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {loading && (
                 <motion.div 
+                  key="loading"
                   className="glass-card loading-container"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -515,8 +529,9 @@ function App() {
                 </motion.div>
               )}
 
-              {error && (
+              {error && !loading && (
                 <motion.div 
+                  key="error"
                   className="error-container"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -527,56 +542,60 @@ function App() {
               )}
 
               {/* Page Content - Always Show */}
-              {(results && activeTab === 'overview') || activeTab !== 'overview' ? (
-                  <AnimatePresence mode="wait">
-                    {activeTab === 'overview' && (
-                      <OverviewPage 
-                        key="overview"
-                        results={results}
-                        benchmarkData={benchmarkData}
-                        riskMetrics={riskMetrics}
-                        stockInfo={stockInfo}
-                        chartDataFormatted={chartDataFormatted}
-                        chartType={chartType}
-                        visibleSeries={visibleSeries}
-                        onChartTypeChange={handleChartTypeChange}
-                        onSeriesToggle={handleSeriesToggle}
-                      />
-                    )}
+              {!loading && !error && ((results && activeTab === 'overview') || activeTab !== 'overview') && (
+                <>
+                  {activeTab === 'overview' && (
+                    <OverviewPage 
+                      key="overview"
+                      results={results}
+                      benchmarkData={benchmarkData}
+                      riskMetrics={riskMetrics}
+                      stockInfo={stockInfo}
+                      chartDataFormatted={chartDataFormatted}
+                      chartType={chartType}
+                      visibleSeries={visibleSeries}
+                      onChartTypeChange={handleChartTypeChange}
+                      onSeriesToggle={handleSeriesToggle}
+                    />
+                  )}
 
-                    {activeTab === 'analytics' && (
-                      <InvestmentComparisonPage 
-                        key="analytics"
-                        results={results}
-                        contribution={contribution}
-                        cadence={cadence}
-                        startDate={startDate}
-                        endDate={endDate}
-                      />
-                    )}
+                  {activeTab === 'analytics' && (
+                    <InvestmentComparisonPage 
+                      key="analytics"
+                      results={results}
+                      contribution={contribution}
+                      cadence={cadence}
+                      startDate={startDate}
+                      endDate={endDate}
+                    />
+                  )}
 
-                    {activeTab === 'stock' && (
-                      <StockDetailsPage 
-                        key="stock"
-                        stockInfo={stockInfo}
-                        stockInfoLoading={stockInfoLoading}
-                      />
-                    )}
+                  {activeTab === 'stock' && (
+                    <StockDetailsPage 
+                      key="stock"
+                      stockInfo={stockInfo}
+                      stockInfoLoading={stockInfoLoading}
+                    />
+                  )}
 
-                    {activeTab === 'risk' && (
-                      <RiskAnalysisPage 
-                        key="risk"
-                        riskMetrics={riskMetrics}
-                        stockInfo={stockInfo}
-                      />
-                    )}
-                  </AnimatePresence>
-              ) : (
+                  {activeTab === 'risk' && (
+                    <RiskAnalysisPage 
+                      key="risk"
+                      riskMetrics={riskMetrics}
+                      stockInfo={stockInfo}
+                    />
+                  )}
+                </>
+              )}
+
+              {!loading && !error && !((results && activeTab === 'overview') || activeTab !== 'overview') && (
                 /* Enhanced Empty State */
                 <motion.div
+                  key="empty-state"
                   className="glass-card empty-state"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.6, delay: 0.4 }}
                 >
                   <div className="empty-state-content">

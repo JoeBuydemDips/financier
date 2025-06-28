@@ -1,0 +1,18 @@
+/*
+  # Security headers for frontend
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' /.netlify/functions/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  
+  # CORS headers
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization
+  
+  # Security headers
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/.netlify/functions/*
+  # Relaxed CSP for serverless functions (needed for Yahoo Finance API)
+  Content-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' https://www.alphavantage.co https://query1.finance.yahoo.com https://query2.finance.yahoo.com https://*.yahoo.com https://*.yahooapis.com https://finance.yahoo.com
