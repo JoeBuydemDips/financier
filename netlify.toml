@@ -10,6 +10,28 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Function configuration for production
+[functions]
+  # Global function settings
+  node_bundler = "esbuild"
+
+  # Specific function overrides for data-heavy operations
+  [functions.history]
+    timeout = 26  # Maximum for free tier (26 seconds)
+    memory = 1024  # MB - increased for better performance
+    
+  [functions.calculate-dca]
+    timeout = 26  # DCA calculations can be intensive
+    memory = 1024
+    
+  [functions.stock]
+    timeout = 15  # Stock quotes should be faster
+    memory = 512
+    
+  [functions.search]
+    timeout = 15
+    memory = 512
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

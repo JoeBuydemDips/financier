@@ -49,6 +49,16 @@ const setCache = (key, data) => {
 // Add delay function to avoid rate limiting
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Timeout wrapper for API calls
+const withTimeout = (promise, timeoutMs, errorMessage) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    )
+  ]);
+};
+
 export const handler = async (event, context) => {
   // Handle CORS
   const headers = {
@@ -117,38 +127,89 @@ export const handler = async (event, context) => {
   try {
     await delay(200);
     
+    // Performance monitoring
+    const startTime = Date.now();
+    console.log(`Starting history request for ${ticker} at ${new Date(startTime).toISOString()}`);
+    
     const queryOptions = { period1: startDate, period2: endDate };
     
-    // Use fallback system to get historical data for both stock and benchmark
-    const [stockData, benchmarkData] = await Promise.all([
-      fetchHistoryWithFallback(ticker, queryOptions, async (symbol, options) => {
-        // Convert date strings to Date objects for Yahoo Finance
-        const chartOptions = {
-          period1: new Date(options.period1),
-          period2: new Date(options.period2),
-          interval: '1d'
-        };
-        const data = await yahooFinance.chart(symbol, chartOptions);
-        return data;
-      }),
-      fetchHistoryWithFallback('SPY', queryOptions, async (symbol, options) => {
-        // Convert date strings to Date objects for Yahoo Finance
-        const chartOptions = {
-          period1: new Date(options.period1),
-          period2: new Date(options.period2),
-          interval: '1d'
-        };
-        const data = await yahooFinance.chart(symbol, chartOptions);
-        return data;
-      })
-    ]);
+    // Optimize: Check if ticker is same as benchmark to avoid duplicate API calls
+    const benchmarkTicker = 'SPY';
+    const isDuplicateRequest = ticker.toUpperCase() === benchmarkTicker;
+    
+    console.log(`Fetching history for ${ticker}, benchmark: ${benchmarkTicker}, duplicate: ${isDuplicateRequest}`);
+    
+    let stockData, benchmarkData;
+    
+    if (isDuplicateRequest) {
+      // Single API call when ticker equals benchmark
+      console.log(`Optimizing: Single API call for ${ticker} (same as benchmark)`);
+      stockData = await withTimeout(
+        fetchHistoryWithFallback(ticker, queryOptions, async (symbol, options) => {
+          // Convert date strings to Date objects for Yahoo Finance
+          const chartOptions = {
+            period1: new Date(options.period1),
+            period2: new Date(options.period2),
+            interval: '1d'
+          };
+          const data = await yahooFinance.chart(symbol, chartOptions);
+          return data;
+        }),
+        20000, // 20 second timeout for single call
+        `Request timeout: ${ticker} data took too long to fetch`
+      );
+      // Use same data for benchmark
+      benchmarkData = stockData;
+    } else {
+      // Parallel calls for different tickers with timeout
+      console.log(`Fetching separate data for ${ticker} and benchmark ${benchmarkTicker}`);
+      [stockData, benchmarkData] = await Promise.all([
+        withTimeout(
+          fetchHistoryWithFallback(ticker, queryOptions, async (symbol, options) => {
+            // Convert date strings to Date objects for Yahoo Finance
+            const chartOptions = {
+              period1: new Date(options.period1),
+              period2: new Date(options.period2),
+              interval: '1d'
+            };
+            const data = await yahooFinance.chart(symbol, chartOptions);
+            return data;
+          }),
+          15000, // 15 second timeout for parallel calls
+          `Request timeout: ${ticker} data took too long to fetch`
+        ),
+        withTimeout(
+          fetchHistoryWithFallback(benchmarkTicker, queryOptions, async (symbol, options) => {
+            // Convert date strings to Date objects for Yahoo Finance
+            const chartOptions = {
+              period1: new Date(options.period1),
+              period2: new Date(options.period2),
+              interval: '1d'
+            };
+            const data = await yahooFinance.chart(symbol, chartOptions);
+            return data;
+          }),
+          15000, // 15 second timeout for parallel calls
+          `Request timeout: ${benchmarkTicker} benchmark data took too long to fetch`
+        )
+      ]);
+    }
 
+    // Performance logging
+    const duration = Date.now() - startTime;
+    console.log(`History request completed for ${ticker} in ${duration}ms`);
+    
     const response = {
       stock: stockData.quotes,
       benchmark: benchmarkData.quotes,
       dataSource: {
         stock: stockData.dataSource || 'yahoo',
         benchmark: benchmarkData.dataSource || 'yahoo'
+      },
+      performance: {
+        duration,
+        optimized: isDuplicateRequest,
+        timestamp: new Date().toISOString()
       }
     };
 
@@ -170,6 +231,32 @@ export const handler = async (event, context) => {
       body: JSON.stringify(response)
     };
   } catch (error) {
+    // Performance logging for failed requests
+    const duration = Date.now() - startTime;
+    console.error(`History request failed for ${ticker} after ${duration}ms:`, error.message);
+    
+    // Check if this is a timeout error - provide graceful degradation
+    if (error.message.includes('timeout')) {
+      console.log(`Timeout detected for ${ticker}, providing helpful error message`);
+      
+      return {
+        statusCode: 408, // Request Timeout
+        headers,
+        body: JSON.stringify({
+          message: `Request timeout: Historical data for ${ticker} took too long to fetch`,
+          type: 'timeout',
+          ticker: ticker,
+          period: `${startDate} to ${endDate}`,
+          suggestion: 'Try a shorter date range or try again later. Large date ranges may exceed processing limits.',
+          performance: {
+            duration,
+            timeout: true,
+            timestamp: new Date().toISOString()
+          }
+        })
+      };
+    }
+    
     const errorResponse = handleAPIError(error, 'historical data', ticker);
     return {
       statusCode: errorResponse.status,
@@ -178,7 +265,11 @@ export const handler = async (event, context) => {
         message: errorResponse.message,
         type: errorResponse.type,
         ticker: ticker,
-        period: `${startDate} to ${endDate}`
+        period: `${startDate} to ${endDate}`,
+        performance: {
+          duration,
+          timestamp: new Date().toISOString()
+        }
       })
     };
   }
