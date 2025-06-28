@@ -599,7 +599,7 @@ const createCacheHeaders = (dataSource, cacheSeconds) => {
   
   return {
     'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}`,
-    'ETag': `"${Date.now()}-${dataSource}"`,
+    'ETag': `"v2-${Date.now()}-${dataSource}"`, // v2 to bust old cached errors
     'Vary': 'Accept-Encoding'
   };
 };
