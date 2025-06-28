@@ -146,7 +146,8 @@ export const handler = async (event, context) => {
       console.log(`Optimizing: Single API call for ${ticker} (same as benchmark)`);
       stockData = await withTimeout(
         fetchHistoryWithFallback(ticker, queryOptions, async (symbol, options) => {
-          // Convert date strings to Date objects for Yahoo Finance
+          // For crypto, this fetcher won't be used since fetchHistoryWithFallback 
+          // handles crypto directly, but we keep it for consistency
           const chartOptions = {
             period1: new Date(options.period1),
             period2: new Date(options.period2),
@@ -199,12 +200,40 @@ export const handler = async (event, context) => {
     const duration = Date.now() - startTime;
     console.log(`History request completed for ${ticker} in ${duration}ms`);
     
+    // Debug: Log actual data structure received
+    console.log(`Stock data structure:`, {
+      hasStockData: !!stockData,
+      stockDataKeys: stockData ? Object.keys(stockData) : [],
+      hasQuotes: !!(stockData && stockData.quotes),
+      quotesLength: stockData?.quotes?.length || 0,
+      dataSource: stockData?.dataSource || 'unknown'
+    });
+    
+    console.log(`Benchmark data structure:`, {
+      hasBenchmarkData: !!benchmarkData,
+      benchmarkDataKeys: benchmarkData ? Object.keys(benchmarkData) : [],
+      hasQuotes: !!(benchmarkData && benchmarkData.quotes),
+      quotesLength: benchmarkData?.quotes?.length || 0,
+      dataSource: benchmarkData?.dataSource || 'unknown'
+    });
+    
+    // Validate data structure and provide fallbacks
+    const stockQuotes = stockData?.quotes || [];
+    const benchmarkQuotes = benchmarkData?.quotes || [];
+    
+    if (stockQuotes.length === 0) {
+      console.error(`No stock quotes found for ${ticker}. Stock data:`, stockData);
+    }
+    if (benchmarkQuotes.length === 0) {
+      console.error(`No benchmark quotes found. Benchmark data:`, benchmarkData);
+    }
+    
     const response = {
-      stock: stockData.quotes,
-      benchmark: benchmarkData.quotes,
+      stock: stockQuotes,
+      benchmark: benchmarkQuotes,
       dataSource: {
-        stock: stockData.dataSource || 'yahoo',
-        benchmark: benchmarkData.dataSource || 'yahoo'
+        stock: stockData?.dataSource || 'yahoo',
+        benchmark: benchmarkData?.dataSource || 'yahoo'
       },
       performance: {
         duration,
