@@ -263,7 +263,7 @@ export const OverviewPage = ({
                           padding: '12px'
                         }}
                         labelStyle={{ color: '#8b949e', fontSize: '12px', marginBottom: '8px' }}
-                        formatter={(value, name, props) => {
+                                                formatter={(value, name, props) => {
                           const labels = {
                             'contributions': 'Total Invested',
                             'portfolioValue': 'Portfolio Value',
@@ -279,7 +279,7 @@ export const OverviewPage = ({
                               const changeColor = change >= 0 ? '#00d395' : '#ff6b6b';
                               const changeSign = change >= 0 ? '+' : '';
                               return [
-                                <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '180px' }}>
+                                <div key={name || 'unknown-line'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '180px' }}>
                                   <span>{formattedValue}</span>
                                   <span style={{ color: changeColor, fontSize: '12px', fontWeight: '600' }}>
                                     {changeSign}{change.toFixed(1)}%
@@ -289,8 +289,8 @@ export const OverviewPage = ({
                               ];
                             }
                           }
-                                                  
-                        return [formattedValue, labels[name as keyof typeof labels] || name];
+                          
+                          return [formattedValue, labels[name as keyof typeof labels] || name];
                         }}
                       />
                       {visibleSeries.contributions && (

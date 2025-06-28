@@ -324,6 +324,17 @@ const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
         const cryptoData = await alphaClient.crypto.daily(cryptoSymbol, 'USD');
         trackAlphaVantageCall();
         
+        // Debug: Log the actual structure returned by Alpha Vantage
+        console.log(`Alpha Vantage crypto response keys for ${cryptoSymbol}:`, Object.keys(cryptoData || {}));
+        if (cryptoData) {
+          console.log(`First few keys in crypto data:`, Object.keys(cryptoData).slice(0, 5));
+          if (cryptoData['Time Series (Digital Currency Daily)']) {
+            console.log(`Found expected key: Time Series (Digital Currency Daily)`);
+          } else {
+            console.log(`Available keys:`, Object.keys(cryptoData));
+          }
+        }
+        
         const mappedData = mapAlphaVantageCryptoHistoryToYahoo(cryptoData);
         
         if (!mappedData.length) {

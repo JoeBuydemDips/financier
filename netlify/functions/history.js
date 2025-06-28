@@ -14,10 +14,17 @@ const getCacheKey = (endpoint, params) => {
 const getFromCache = (key) => {
   const cached = cache.get(key);
   if (cached) {
-    // Use different TTL based on data source
-    const ttl = cached.data.dataSource === 'alphavantage' ? ALPHA_CACHE_TTL : CACHE_TTL;
+    // Use different TTL based on data source (handle object format)
+    const hasAlphaVantage = typeof cached.data.dataSource === 'object'
+      ? (cached.data.dataSource.stock === 'alphavantage' || cached.data.dataSource.benchmark === 'alphavantage')
+      : (cached.data.dataSource === 'alphavantage');
+    const ttl = hasAlphaVantage ? ALPHA_CACHE_TTL : CACHE_TTL;
+    
     if (Date.now() - cached.timestamp < ttl) {
-      console.log(`Cache hit for: ${key} (source: ${cached.data.dataSource || 'yahoo'})`);
+      const sourceInfo = typeof cached.data.dataSource === 'object' 
+        ? `stock:${cached.data.dataSource.stock}, benchmark:${cached.data.dataSource.benchmark}`
+        : (cached.data.dataSource || 'yahoo');
+      console.log(`Cache hit for: ${key} (source: ${sourceInfo})`);
       return cached.data;
     }
     cache.delete(key); // Remove expired cache
@@ -30,7 +37,11 @@ const setCache = (key, data) => {
     data,
     timestamp: Date.now()
   });
-  console.log(`Cached: ${key} (source: ${data.dataSource || 'yahoo'})`);
+  // Handle both string and object dataSource formats
+  const sourceInfo = typeof data.dataSource === 'object' 
+    ? `stock:${data.dataSource.stock}, benchmark:${data.dataSource.benchmark}`
+    : (data.dataSource || 'yahoo');
+  console.log(`Cached: ${key} (source: ${sourceInfo})`);
 };
 
 // Error handling is now managed by the shared apiClient utility
