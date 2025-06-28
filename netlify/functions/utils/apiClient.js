@@ -42,6 +42,11 @@ const trackAlphaVantageCall = () => {
   console.log(`Alpha Vantage calls used: ${alphaVantageCallCount}/25`);
 };
 
+// Export function for external tracking (used by stock.js hybrid approach)
+const trackAlphaVantageCallExternal = () => {
+  trackAlphaVantageCall();
+};
+
 // Create unique request key for deduplication
 const createRequestKey = (type, params) => {
   return `${type}:${JSON.stringify(params)}`;
@@ -66,6 +71,50 @@ const deduplicateRequest = async (requestKey, requestFn) => {
     // Clean up pending request
     pendingRequests.delete(requestKey);
   }
+};
+
+// Check if symbol is cryptocurrency (e.g., BTC-USD, ETH-USD)
+const isCryptoSymbol = (symbol) => {
+  return symbol.includes('-USD') || symbol.includes('-USDT') || 
+         ['BTC', 'ETH', 'ADA', 'DOT', 'SOL', 'DOGE', 'MATIC', 'AVAX'].includes(symbol.toUpperCase());
+};
+
+// Convert Yahoo crypto symbol to Alpha Vantage format (BTC-USD -> BTC)
+const convertCryptoSymbol = (symbol) => {
+  if (symbol.includes('-')) {
+    return symbol.split('-')[0].toUpperCase();
+  }
+  return symbol.toUpperCase();
+};
+
+// Map Alpha Vantage crypto data to Yahoo Finance format
+const mapAlphaVantageCryptoToYahoo = (exchangeRate, originalSymbol) => {
+  if (!exchangeRate) return null;
+  
+  const realtimeRate = exchangeRate['Realtime Currency Exchange Rate'];
+  if (!realtimeRate) return null;
+  
+  return {
+    symbol: originalSymbol, // Keep original format (BTC-USD)
+    shortName: `${realtimeRate['2. From_Currency Name']}`,
+    currentPrice: parseFloat(realtimeRate['5. Exchange Rate']),
+    currency: realtimeRate['4. To_Currency Code'],
+    marketCap: null, // Not available in exchange rate data
+    peRatio: null,
+    dividendYield: null,
+    beta: null,
+    fiftyTwoWeekHigh: null,
+    fiftyTwoWeekLow: null,
+    volume: null,
+    avgVolume: null,
+    sector: 'Cryptocurrency',
+    industry: 'Digital Currency',
+    profitMargins: null,
+    bookValue: null,
+    priceToBook: null,
+    quoteType: 'CRYPTOCURRENCY',
+    dataSource: 'alphavantage'
+  };
 };
 
 // Map Alpha Vantage stock data to Yahoo Finance format
@@ -95,6 +144,24 @@ const mapAlphaVantageToYahooStock = (overview, quote) => {
     priceToBook: overview['PriceToBookRatio'] ? parseFloat(overview['PriceToBookRatio']) : null,
     dataSource: 'alphavantage'
   };
+};
+
+// Map Alpha Vantage crypto historical data to Yahoo Finance format
+const mapAlphaVantageCryptoHistoryToYahoo = (cryptoData) => {
+  if (!cryptoData || !cryptoData['Time Series (Digital Currency Daily)']) return [];
+  
+  const dailyData = cryptoData['Time Series (Digital Currency Daily)'];
+  
+  return Object.entries(dailyData)
+    .map(([date, data]) => ({
+      date: new Date(date),
+      open: parseFloat(data['1a. open (USD)']),
+      high: parseFloat(data['2a. high (USD)']),
+      low: parseFloat(data['3a. low (USD)']),
+      close: parseFloat(data['4a. close (USD)']),
+      volume: parseFloat(data['5. volume'])
+    }))
+    .sort((a, b) => a.date - b.date); // Sort by date ascending
 };
 
 // Map Alpha Vantage historical data to Yahoo Finance format
@@ -134,8 +201,56 @@ const fetchStockWithFallback = async (ticker, yahooFetcher) => {
   const requestKey = createRequestKey('stock', { ticker });
   
   return await deduplicateRequest(requestKey, async () => {
+    const isCrypto = isCryptoSymbol(ticker);
+    
+    // For CRYPTO: Use Alpha Vantage PRIMARY (to avoid CSP eval() issues)
+    if (isCrypto) {
+      // Check if we can use Alpha Vantage
+      if (!canUseAlphaVantage()) {
+        throw new Error('Crypto data source unavailable - API limit reached. Please try again later.');
+      }
+      
+      try {
+        console.log(`Fetching crypto data for ${ticker} from Alpha Vantage (primary)...`);
+        
+        const alphaClient = getAlphaClient();
+        if (!alphaClient) {
+          throw new Error('Alpha Vantage API key not configured');
+        }
+        
+        // Convert BTC-USD to BTC for Alpha Vantage API
+        const cryptoSymbol = convertCryptoSymbol(ticker);
+        const exchangeRate = await alphaClient.forex.rate(cryptoSymbol, 'USD');
+        trackAlphaVantageCall();
+        
+        const mappedData = mapAlphaVantageCryptoToYahoo(exchangeRate, ticker);
+        
+        if (!mappedData) {
+          throw new Error('No crypto data available from Alpha Vantage');
+        }
+        
+        return mappedData;
+      } catch (alphaError) {
+        console.log(`Alpha Vantage failed for crypto ${ticker}:`, alphaError.message);
+        
+        // Fallback to Yahoo Finance for crypto (accepts CSP risk)
+        try {
+          console.log(`Falling back to Yahoo Finance for crypto ${ticker}...`);
+          const yahooResult = await yahooFetcher(ticker);
+          return {
+            ...yahooResult,
+            dataSource: 'yahoo-fallback'
+          };
+        } catch (yahooError) {
+          console.log(`Yahoo Finance also failed for crypto ${ticker}:`, yahooError.message);
+          throw new Error(`Crypto data sources are currently unavailable. Please try again in a few minutes.`);
+        }
+      }
+    }
+    
+    // For STOCKS: Use hybrid approach (Alpha Vantage for quotes, Yahoo for company data)
     try {
-      // Try Yahoo Finance first
+      // Try Yahoo Finance first for company data (CSP-safe)
       console.log(`Fetching stock data for ${ticker} from Yahoo Finance...`);
       const yahooResult = await yahooFetcher(ticker);
       return {
@@ -187,8 +302,68 @@ const fetchHistoryWithFallback = async (ticker, options, yahooFetcher) => {
   const requestKey = createRequestKey('history', { ticker, options });
   
   return await deduplicateRequest(requestKey, async () => {
+    const isCrypto = isCryptoSymbol(ticker);
+    
+    // For CRYPTO: Use Alpha Vantage PRIMARY (to avoid CSP eval() issues)
+    if (isCrypto) {
+      // Check if we can use Alpha Vantage
+      if (!canUseAlphaVantage()) {
+        throw new Error('Crypto data source unavailable - API limit reached. Please try again later.');
+      }
+      
+      try {
+        console.log(`Fetching crypto history for ${ticker} from Alpha Vantage (primary)...`);
+        
+        const alphaClient = getAlphaClient();
+        if (!alphaClient) {
+          throw new Error('Alpha Vantage API key not configured');
+        }
+        
+        // Convert BTC-USD to BTC for Alpha Vantage API
+        const cryptoSymbol = convertCryptoSymbol(ticker);
+        const cryptoData = await alphaClient.crypto.daily(cryptoSymbol, 'USD');
+        trackAlphaVantageCall();
+        
+        const mappedData = mapAlphaVantageCryptoHistoryToYahoo(cryptoData);
+        
+        if (!mappedData.length) {
+          throw new Error('No crypto historical data available from Alpha Vantage');
+        }
+        
+        // Filter data based on date range if provided
+        let filteredData = mappedData;
+        if (options.period1 && options.period2) {
+          const startDate = new Date(options.period1);
+          const endDate = new Date(options.period2);
+          filteredData = mappedData.filter(item => 
+            item.date >= startDate && item.date <= endDate
+          );
+        }
+        
+        return {
+          quotes: filteredData,
+          dataSource: 'alphavantage'
+        };
+      } catch (alphaError) {
+        console.log(`Alpha Vantage failed for crypto ${ticker} history:`, alphaError.message);
+        
+        // Fallback to Yahoo Finance for crypto (accepts CSP risk)
+        try {
+          console.log(`Falling back to Yahoo Finance for crypto ${ticker} history...`);
+          const yahooResult = await yahooFetcher(ticker, options);
+          return {
+            ...yahooResult,
+            dataSource: 'yahoo-fallback'
+          };
+        } catch (yahooError) {
+          console.log(`Yahoo Finance also failed for crypto ${ticker} history:`, yahooError.message);
+          throw new Error(`Crypto data sources are currently unavailable. Please try again in a few minutes.`);
+        }
+      }
+    }
+    
+    // For STOCKS: Try Yahoo Finance first
     try {
-      // Try Yahoo Finance first
       console.log(`Fetching historical data for ${ticker} from Yahoo Finance...`);
       const yahooResult = await yahooFetcher(ticker, options);
       return {
@@ -366,8 +541,13 @@ export {
   fetchSearchWithFallback,
   handleAPIError,
   canUseAlphaVantage,
+  trackAlphaVantageCallExternal,
+  isCryptoSymbol,
+  convertCryptoSymbol,
   mapAlphaVantageToYahooStock,
+  mapAlphaVantageCryptoToYahoo,
   mapAlphaVantageToYahooHistory,
+  mapAlphaVantageCryptoHistoryToYahoo,
   mapAlphaVantageToYahooSearch,
   createCacheHeaders
 }; 

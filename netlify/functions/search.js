@@ -71,15 +71,18 @@ export const handler = async (event, context) => {
 
   // Extract query from path: /search/AAPL -> AAPL
   const pathSegments = event.path.split('/');
-  const query = pathSegments[pathSegments.length - 1];
+  const rawQuery = pathSegments[pathSegments.length - 1];
 
-  if (!query) {
+  if (!rawQuery) {
     return {
       statusCode: 400,
       headers,
       body: JSON.stringify({ message: 'Search query is required' })
     };
   }
+
+  // Normalize search query to uppercase for better matching (btc -> BTC)
+  const query = rawQuery.toUpperCase();
 
   const cacheKey = getCacheKey('search', { query });
 

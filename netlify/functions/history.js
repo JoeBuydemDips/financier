@@ -67,15 +67,18 @@ export const handler = async (event, context) => {
 
   // Extract ticker from path: /history/AAPL -> AAPL
   const pathSegments = event.path.split('/');
-  const ticker = pathSegments[pathSegments.length - 1];
+  const rawTicker = pathSegments[pathSegments.length - 1];
 
-  if (!ticker) {
+  if (!rawTicker) {
     return {
       statusCode: 400,
       headers,
       body: JSON.stringify({ message: 'Ticker symbol is required' })
     };
   }
+
+  // Normalize ticker to uppercase for consistency (btc-usd -> BTC-USD)
+  const ticker = rawTicker.toUpperCase();
 
   // Parse query parameters
   const { startDate, endDate } = event.queryStringParameters || {};

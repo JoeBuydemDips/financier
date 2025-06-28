@@ -241,7 +241,10 @@ export const handler = async (event, context) => {
     const assetPromises = assets.map(async (asset) => {
       await delay(100); // Small delay between requests
       
-      const historicalResponse = await fetchHistoryWithFallback(asset.symbol, queryOptions, async (symbol, options) => {
+      // Normalize ticker to uppercase for consistency (btc-usd -> BTC-USD)
+      const normalizedSymbol = asset.symbol.toUpperCase();
+      
+      const historicalResponse = await fetchHistoryWithFallback(normalizedSymbol, queryOptions, async (symbol, options) => {
         const data = await yahooFinance.historical(symbol, options);
         return { quotes: data };
       });
@@ -257,7 +260,7 @@ export const handler = async (event, context) => {
       );
 
       return {
-        symbol: asset.symbol,
+        symbol: normalizedSymbol,
         name: asset.name,
         allocation: asset.allocation || 1,
         dataSource: historicalResponse.dataSource || 'yahoo',
