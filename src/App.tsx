@@ -6,21 +6,14 @@ import {
   Calendar, 
   BarChart3, 
   Target,
-  Loader2
+  Loader2,
+  Menu
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Area,
-  AreaChart
-} from 'recharts';
 import './App.css';
 import { NavigationTabs } from './components/NavigationTabs';
+import { MobileSidebar } from './components/MobileSidebar';
+import { MobileHeader } from './components/MobileHeader';
+import { useIsMobile } from './hooks/useIsMobile';
 import { OverviewPage } from './components/pages/OverviewPage';
 import { InvestmentComparisonPage } from './components/pages/InvestmentComparisonPage';
 import { StockDetailsPage } from './components/pages/StockDetailsPage';
@@ -33,18 +26,18 @@ function App() {
   const [cadence, setCadence] = useState('monthly');
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState('2023-01-01');
-  const [results, setResults] = useState(null);
-  const [chartData, setChartData] = useState(null);
-  const [stockInfo, setStockInfo] = useState(null);
-  const [benchmarkData, setBenchmarkData] = useState(null);
-  const [riskMetrics, setRiskMetrics] = useState(null);
+  const [results, setResults] = useState<any>(null);
+  const [chartData, setChartData] = useState<any>(null);
+  const [stockInfo, setStockInfo] = useState<any>(null);
+  const [benchmarkData, setBenchmarkData] = useState<any>(null);
+  const [riskMetrics, setRiskMetrics] = useState<any>(null);
 
   const [loading, setLoading] = useState(false);
   const [stockInfoLoading, setStockInfoLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Chart controls state
-  const [chartType, setChartType] = useState('area');
+  const [chartType, setChartType] = useState<'area' | 'line'>('area');
   const [visibleSeries, setVisibleSeries] = useState({
     contributions: true,
     portfolioValue: true,
@@ -53,6 +46,10 @@ function App() {
 
   // Navigation state
   const [activeTab, setActiveTab] = useState('overview');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Mobile detection
+  const isMobile = useIsMobile();
 
   // Fetch stock information when ticker changes
   useEffect(() => {
@@ -89,20 +86,38 @@ function App() {
   }, [ticker]);
 
   // Chart control handlers
-  const handleChartTypeChange = (type: string) => {
+  const handleChartTypeChange = (type: 'area' | 'line') => {
     setChartType(type);
   };
 
   const handleSeriesToggle = (series: string) => {
     setVisibleSeries(prev => ({
       ...prev,
-      [series]: !prev[series]
+      [series as keyof typeof prev]: !prev[series as keyof typeof prev]
     }));
   };
 
   // Navigation handler
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    // Close mobile sidebar when tab changes
+    if (isMobile) {
+      setIsMobileSidebarOpen(false);
+    }
+  };
+
+  // Mobile back navigation - return to overview
+  const handleMobileBack = () => {
+    setActiveTab('overview');
+  };
+
+  // Mobile sidebar handlers
+  const handleMobileSidebarOpen = () => {
+    setIsMobileSidebarOpen(true);
+  };
+
+  const handleMobileSidebarClose = () => {
+    setIsMobileSidebarOpen(false);
   };
 
   // Calculate risk metrics
@@ -189,10 +204,10 @@ function App() {
       const benchmarkData = data.benchmark;
 
       const portfolio = {
-        dates: [],
-        values: [],
-        contributions: [],
-        benchmarkValues: []
+        dates: [] as string[],
+        values: [] as number[],
+        contributions: [] as number[],
+        benchmarkValues: [] as number[]
       };
 
       let totalContributed = 0;
@@ -214,8 +229,8 @@ function App() {
         const currentDate = new Date(day);
         const dateString = currentDate.toISOString().split('T')[0];
 
-        const marketDataForDay = historicalData.find(d => new Date(d.date).toISOString().split('T')[0] === dateString);
-        const benchmarkDataForDay = benchmarkData?.find(d => new Date(d.date).toISOString().split('T')[0] === dateString);
+        const marketDataForDay = historicalData.find((d: any) => new Date(d.date).toISOString().split('T')[0] === dateString);
+        const benchmarkDataForDay = benchmarkData?.find((d: any) => new Date(d.date).toISOString().split('T')[0] === dateString);
 
         if (currentDate >= nextContributionDate && marketDataForDay && benchmarkDataForDay) {
           totalContributed += contributionAmount;
@@ -326,7 +341,7 @@ function App() {
 
   // Transform data for Recharts
   const chartDataFormatted = chartData ? 
-    chartData.labels.map((date, index) => ({
+    chartData.labels.map((date: any, index: number) => ({
       date: new Date(date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
       contributions: chartData.datasets[0].data[index],
       portfolioValue: chartData.datasets[1].data[index],
@@ -335,186 +350,215 @@ function App() {
 
   return (
     <div className="app">
-      {/* Modern Header with Navigation */}
-      <motion.header 
-        className="app-header"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
-        <a href="#" className="brand">
-          <TrendingUp size={24} style={{ marginRight: '8px', display: 'inline' }} />
-          Financier
-        </a>
-        
-        {/* Header Navigation */}
-        <div className="header-navigation">
-          <NavigationTabs 
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
-        </div>
-      </motion.header>
+      {/* Conditional Header - Mobile vs Desktop */}
+      {isMobile ? (
+        <MobileHeader
+          activeTab={activeTab}
+          onBackClick={handleMobileBack}
+          onMenuClick={handleMobileSidebarOpen}
+          isOverview={activeTab === 'overview'}
+        />
+      ) : (
+        /* Desktop Header with Navigation */
+        <motion.header 
+          className="app-header"
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          {/* Mobile Menu Button (hidden on desktop) */}
+          <button 
+            className="mobile-menu-button"
+            onClick={handleMobileSidebarOpen}
+            aria-label="Open navigation menu"
+          >
+            <Menu size={24} />
+          </button>
 
-      <div className="app-container">
-        <div className="app-grid">
-          {/* Left Sidebar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Compact Stock Information - Available on All Tabs */}
-            <motion.div 
-              className="glass-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="card-body" style={{ padding: '1rem' }}>
-                {stockInfo ? (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                      {stockInfo.shortName} ({stockInfo.symbol})
+          <a href="#" className="brand">
+            <TrendingUp size={24} style={{ marginRight: '8px', display: 'inline' }} />
+            Financier
+          </a>
+          
+          {/* Header Navigation */}
+          <div className="header-navigation">
+            <NavigationTabs 
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+            />
+          </div>
+        </motion.header>
+      )}
+
+      {/* Mobile Sidebar */}
+      <MobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={handleMobileSidebarClose}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+      />
+
+      <div className={`app-container ${isMobile ? 'mobile-container' : ''}`}>
+        <div className={`app-grid ${isMobile ? 'mobile-grid' : ''}`}>
+          {/* Left Sidebar - Conditional rendering for mobile */}
+          {(!isMobile || activeTab === 'overview') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Compact Stock Information - Available on All Tabs */}
+              <motion.div 
+                className="glass-card"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="card-body" style={{ padding: '1rem' }}>
+                  {stockInfo ? (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                        {stockInfo.shortName} ({stockInfo.symbol})
+                      </div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--accent-green)', marginBottom: '0.5rem' }}>
+                        ${stockInfo.currentPrice?.toFixed(2) || 'N/A'}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        {stockInfo.sector && `${stockInfo.sector} • `}
+                        Market Cap: {stockInfo.marketCap ? `$${(stockInfo.marketCap / 1e9).toFixed(1)}B` : 'N/A'}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--accent-green)', marginBottom: '0.5rem' }}>
-                      ${stockInfo.currentPrice?.toFixed(2) || 'N/A'}
+                  ) : (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Enter ticker to view stock info
                     </div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                      {stockInfo.sector && `${stockInfo.sector} • `}
-                      Market Cap: {stockInfo.marketCap ? `$${(stockInfo.marketCap / 1e9).toFixed(1)}B` : 'N/A'}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Enter ticker to view stock info
-                  </div>
-                )}
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Input Panel */}
+              <motion.div 
+                className="glass-card"
+                initial={{ x: -100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+              <div className="card-header">
+                <h2 className="card-title">
+                  <Target size={20} />
+                  Investment Calculator
+                </h2>
+              </div>
+              <div className="card-body">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="ticker-input">
+                    <BarChart3 size={16} style={{ marginRight: '8px', display: 'inline' }} />
+                    Ticker Symbol
+                  </label>
+                  <input
+                    id="ticker-input"
+                    name="ticker"
+                    type="text"
+                    className="form-input"
+                    value={ticker}
+                    onChange={(e) => setTicker(e.target.value)}
+                    placeholder="e.g., SPY, AAPL, TSLA"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="contribution-input">
+                    <DollarSign size={16} style={{ marginRight: '8px', display: 'inline' }} />
+                    Contribution Amount
+                  </label>
+                  <input
+                    id="contribution-input"
+                    name="contribution"
+                    type="number"
+                    className="form-input"
+                    value={contribution}
+                    onChange={(e) => setContribution(e.target.value)}
+                    placeholder="100"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="cadence-select">Investment Frequency</label>
+                  <select
+                    id="cadence-select"
+                    name="cadence"
+                    className="form-input form-select"
+                    value={cadence}
+                    onChange={(e) => setCadence(e.target.value)}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="start-date-input">
+                    <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
+                    Start Date
+                  </label>
+                  <input
+                    id="start-date-input"
+                    name="startDate"
+                    type="date"
+                    className="form-input"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="end-date-input">
+                    <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
+                    End Date
+                  </label>
+                  <input
+                    id="end-date-input"
+                    name="endDate"
+                    type="date"
+                    className="form-input"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+
+                {/* Centered Button Section */}
+                <div style={{ 
+                  marginTop: '2rem', 
+                  display: 'flex', 
+                  justifyContent: 'center' 
+                }}>
+                  <motion.button
+                    className="btn-primary"
+                    onClick={calculateReturns}
+                    disabled={loading}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                    style={{ width: '80%', maxWidth: '300px' }}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" style={{ marginRight: '8px', display: 'inline' }} />
+                        Calculating...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp size={20} style={{ marginRight: '8px', display: 'inline' }} />
+                        Calculate Returns
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
-
-            {/* Input Panel */}
-            <motion.div 
-              className="glass-card"
-              initial={{ x: -100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-            <div className="card-header">
-              <h2 className="card-title">
-                <Target size={20} />
-                Investment Calculator
-              </h2>
             </div>
-            <div className="card-body">
-              <div className="form-group">
-                <label className="form-label" htmlFor="ticker-input">
-                  <BarChart3 size={16} style={{ marginRight: '8px', display: 'inline' }} />
-                  Ticker Symbol
-                </label>
-                <input
-                  id="ticker-input"
-                  name="ticker"
-                  type="text"
-                  className="form-input"
-                  value={ticker}
-                  onChange={(e) => setTicker(e.target.value)}
-                  placeholder="e.g., SPY, AAPL, TSLA"
-                  autoComplete="off"
-                />
-              </div>
+          )}
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="contribution-input">
-                  <DollarSign size={16} style={{ marginRight: '8px', display: 'inline' }} />
-                  Contribution Amount
-                </label>
-                <input
-                  id="contribution-input"
-                  name="contribution"
-                  type="number"
-                  className="form-input"
-                  value={contribution}
-                  onChange={(e) => setContribution(e.target.value)}
-                  placeholder="100"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="cadence-select">Investment Frequency</label>
-                <select
-                  id="cadence-select"
-                  name="cadence"
-                  className="form-input form-select"
-                  value={cadence}
-                  onChange={(e) => setCadence(e.target.value)}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="start-date-input">
-                  <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
-                  Start Date
-                </label>
-                <input
-                  id="start-date-input"
-                  name="startDate"
-                  type="date"
-                  className="form-input"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="end-date-input">
-                  <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
-                  End Date
-                </label>
-                <input
-                  id="end-date-input"
-                  name="endDate"
-                  type="date"
-                  className="form-input"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-
-              {/* Centered Button Section */}
-              <div style={{ 
-                marginTop: '2rem', 
-                display: 'flex', 
-                justifyContent: 'center' 
-              }}>
-                <motion.button
-                  className="btn-primary"
-                  onClick={calculateReturns}
-                  disabled={loading}
-                  whileHover={{ scale: loading ? 1 : 1.02 }}
-                  whileTap={{ scale: loading ? 1 : 0.98 }}
-                  style={{ width: '80%', maxWidth: '300px' }}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" style={{ marginRight: '8px', display: 'inline' }} />
-                      Calculating...
-                    </>
-                  ) : (
-                    <>
-                      <TrendingUp size={20} style={{ marginRight: '8px', display: 'inline' }} />
-                      Calculate Returns
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-          </div>
-
-          {/* Main Content Area */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Main Content Area - Full screen on mobile for non-overview tabs */}
+          <div className={`main-content ${isMobile && activeTab !== 'overview' ? 'mobile-fullscreen' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <AnimatePresence mode="wait">
               {loading && (
                 <motion.div 
@@ -541,90 +585,105 @@ function App() {
                 </motion.div>
               )}
 
-              {/* Page Content - Always Show */}
-              {!loading && !error && ((results && activeTab === 'overview') || activeTab !== 'overview') && (
-                <>
+              {/* Page Content - Show based on activeTab with animations */}
+              {!loading && !error && (
+                <AnimatePresence mode="wait">
                   {activeTab === 'overview' && (
-                    <OverviewPage 
+                    <motion.div
                       key="overview"
-                      results={results}
-                      benchmarkData={benchmarkData}
-                      riskMetrics={riskMetrics}
-                      stockInfo={stockInfo}
-                      chartDataFormatted={chartDataFormatted}
-                      chartType={chartType}
-                      visibleSeries={visibleSeries}
-                      onChartTypeChange={handleChartTypeChange}
-                      onSeriesToggle={handleSeriesToggle}
-                    />
+                      initial={{ opacity: 0, x: isMobile ? 20 : 0, y: isMobile ? 0 : 20 }}
+                      animate={{ opacity: 1, x: 0, y: 0 }}
+                      exit={{ opacity: 0, x: isMobile ? -20 : 0, y: isMobile ? 0 : -20 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                    >
+                      {results ? (
+                        <OverviewPage 
+                          results={results}
+                          benchmarkData={benchmarkData}
+                          riskMetrics={riskMetrics}
+                          stockInfo={stockInfo}
+                          chartDataFormatted={chartDataFormatted}
+                          chartType={chartType}
+                          visibleSeries={visibleSeries}
+                          onChartTypeChange={handleChartTypeChange}
+                          onSeriesToggle={handleSeriesToggle}
+                        />
+                      ) : (
+                        /* Enhanced Empty State */
+                        <div className="glass-card empty-state">
+                          <div className="empty-state-content">
+                            <div className="empty-state-icon">
+                              <BarChart3 size={48} />
+                            </div>
+                            <h2 className="empty-state-title">Welcome to Financier</h2>
+                            <p className="empty-state-description">
+                              Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
+                            </p>
+                            
+                            <div className="popular-tickers">
+                              <h4>Popular Assets to Analyze:</h4>
+                              <div className="ticker-buttons">
+                                {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ', 'MSFT', 'GOOGL'].map((symbol) => (
+                                  <motion.button
+                                    key={symbol}
+                                    className="ticker-button"
+                                    onClick={() => setTicker(symbol)}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                  >
+                                    {symbol}
+                                  </motion.button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
                   )}
 
                   {activeTab === 'analytics' && (
-                    <InvestmentComparisonPage 
+                    <motion.div
                       key="analytics"
-                      results={results}
-                      contribution={contribution}
-                      cadence={cadence}
-                      startDate={startDate}
-                      endDate={endDate}
-                    />
+                      initial={{ opacity: 0, x: isMobile ? 20 : 0, y: isMobile ? 0 : 20 }}
+                      animate={{ opacity: 1, x: 0, y: 0 }}
+                      exit={{ opacity: 0, x: isMobile ? -20 : 0, y: isMobile ? 0 : -20 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                    >
+                      <InvestmentComparisonPage />
+                    </motion.div>
                   )}
 
                   {activeTab === 'stock' && (
-                    <StockDetailsPage 
+                    <motion.div
                       key="stock"
-                      stockInfo={stockInfo}
-                      stockInfoLoading={stockInfoLoading}
-                    />
+                      initial={{ opacity: 0, x: isMobile ? 20 : 0, y: isMobile ? 0 : 20 }}
+                      animate={{ opacity: 1, x: 0, y: 0 }}
+                      exit={{ opacity: 0, x: isMobile ? -20 : 0, y: isMobile ? 0 : -20 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                    >
+                      <StockDetailsPage 
+                        stockInfo={stockInfo}
+                        stockInfoLoading={stockInfoLoading}
+                      />
+                    </motion.div>
                   )}
 
                   {activeTab === 'risk' && (
-                    <RiskAnalysisPage 
+                    <motion.div
                       key="risk"
-                      riskMetrics={riskMetrics}
-                      stockInfo={stockInfo}
-                    />
+                      initial={{ opacity: 0, x: isMobile ? 20 : 0, y: isMobile ? 0 : 20 }}
+                      animate={{ opacity: 1, x: 0, y: 0 }}
+                      exit={{ opacity: 0, x: isMobile ? -20 : 0, y: isMobile ? 0 : -20 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                    >
+                      <RiskAnalysisPage 
+                        riskMetrics={riskMetrics}
+                        stockInfo={stockInfo}
+                      />
+                    </motion.div>
                   )}
-                </>
-              )}
-
-              {!loading && !error && !((results && activeTab === 'overview') || activeTab !== 'overview') && (
-                /* Enhanced Empty State */
-                <motion.div
-                  key="empty-state"
-                  className="glass-card empty-state"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                >
-                  <div className="empty-state-content">
-                    <div className="empty-state-icon">
-                      <BarChart3 size={48} />
-                    </div>
-                    <h2 className="empty-state-title">Welcome to Financier</h2>
-                    <p className="empty-state-description">
-                      Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
-                    </p>
-                    
-                    <div className="popular-tickers">
-                      <h4>Popular Assets to Analyze:</h4>
-                      <div className="ticker-buttons">
-                        {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ', 'MSFT', 'GOOGL'].map((symbol) => (
-                          <motion.button
-                            key={symbol}
-                            className="ticker-button"
-                            onClick={() => setTicker(symbol)}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {symbol}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                </AnimatePresence>
               )}
             </AnimatePresence>
           </div>
