@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  TrendingUp, 
-  TrendingDown,
   BarChart3,
   Search,
   Plus,
   X,
   DollarSign,
-  Calendar,
   Target,
-  Zap,
   Calculator,
   PieChart,
   Activity
