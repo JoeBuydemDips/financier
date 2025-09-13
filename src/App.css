@@ -33,6 +33,8 @@ body {
   font-family: var(--font-family);
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Modern Header */
@@ -309,7 +311,7 @@ body {
   margin-top: 0;
   min-height: 450px;
   width: 100%;
-  overflow: hidden;
+  overflow: visible; /* Allow content to overflow properly */
 }
 
 /* Loading States */
@@ -2007,6 +2009,7 @@ body {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   z-index: 999;
+  pointer-events: auto; /* Ensure backdrop can be clicked */
 }
 
 .mobile-sidebar {
@@ -2261,4 +2264,163 @@ body {
 .api-status.error {
   border-color: var(--accent-red);
   color: var(--accent-red);
+}
+
+/* Mobile Header Styles */
+.mobile-header {
+  position: sticky;
+  top: 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 100;
+  padding: 1rem;
+}
+
+.mobile-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 100%;
+}
+
+.mobile-header-button {
+  background: var(--glass-hover);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-header-button:hover {
+  background: var(--glass-border);
+  transform: scale(1.05);
+}
+
+.mobile-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  text-align: center;
+  flex: 1;
+  padding: 0 1rem;
+}
+
+/* Mobile Layout Classes */
+.mobile-container {
+  min-height: calc(100vh - 80px); /* Use min-height instead of height */
+  overflow-y: auto; /* Enable scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-grid {
+  min-height: 100%; /* Use min-height instead of height */
+  grid-template-columns: 1fr; /* Single column on mobile */
+  overflow: visible; /* Allow content to overflow properly */
+}
+
+.mobile-fullscreen {
+  min-height: 100%; /* Use min-height instead of height */
+  overflow-y: auto; /* Enable scrolling */
+  padding: 1rem;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+.main-content {
+  overflow-y: auto; /* Ensure main content can scroll */
+  -webkit-overflow-scrolling: touch;
+  min-height: 100%;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .app-header {
+    display: none; /* Hide desktop header on mobile */
+  }
+  
+  .mobile-menu-button {
+    display: none; /* Hide since we have mobile header */
+  }
+  
+  .app-container {
+    padding: 0; /* Remove padding on mobile for full screen */
+    min-height: calc(100vh - 80px); /* Use min-height instead of height */
+    overflow-y: auto; /* Enable scrolling */
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .app-grid {
+    gap: 0; /* Remove gap for seamless mobile experience */
+    min-height: 100%; /* Use min-height instead of height */
+    overflow: visible; /* Allow overflow for scrolling */
+  }
+  
+  /* Ensure main content area is scrollable */
+  .main-content {
+    min-height: 100%; /* Use min-height instead of height */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem;
+  }
+  
+  /* Form improvements for mobile */
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-input,
+  .form-select {
+    font-size: 16px; /* Prevent zoom on iOS */
+    min-height: 44px; /* Touch target */
+    width: 100%; /* Ensure full width on mobile */
+  }
+  
+  /* Investment comparison page grid fix */
+  .investment-comparison-page .card-body > div[style*="grid"] {
+    grid-template-columns: 1fr !important; /* Single column on mobile */
+    gap: 1rem !important;
+  }
+  
+  /* Ensure form inputs take full width in grid layouts */
+  .investment-comparison-page .form-group {
+    width: 100%;
+  }
+  
+  .investment-comparison-page .form-input,
+  .investment-comparison-page .form-select {
+    width: 100% !important;
+    box-sizing: border-box;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  
+  /* Fix specific input fields in investment strategy section */
+  .investment-comparison-page input[type="number"],
+  .investment-comparison-page input[type="date"] {
+    width: 100% !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+    padding: 0.75rem !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Button improvements */
+  .btn-primary {
+    min-height: 48px;
+    font-size: 1.1rem;
+  }
+  
+  /* Card spacing for mobile */
+  .glass-card {
+    margin: 0;
+    border-radius: 1rem;
+  }
 }
