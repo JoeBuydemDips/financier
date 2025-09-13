@@ -1379,6 +1379,108 @@ body {
   width: 100%;
 }
 
+/* Mobile optimizations for overview page */
+@media (max-width: 768px) {
+  .overview-page .card-body div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .overview-page .chart-container {
+    padding: 0.5rem;
+    min-height: 300px;
+  }
+  
+  .overview-page .benchmark-section {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  /* Investment Comparison Page mobile optimizations */
+  .investment-comparison-page .card-body div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .investment-comparison-page table {
+    font-size: 0.875rem;
+  }
+  
+  .investment-comparison-page th,
+  .investment-comparison-page td {
+    padding: 0.75rem 0.5rem !important;
+  }
+
+  /* Better search results on mobile */
+  .search-result-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .search-result-item > div:last-child {
+    align-self: flex-end;
+  }
+
+  /* Selected assets mobile layout */
+  .investment-comparison-page .form-group input[type="number"] {
+    width: 100% !important;
+    max-width: 80px;
+  }
+
+  /* Chart controls mobile */
+  .chart-type-btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+
+  /* Stock Details Page mobile optimizations */
+  .stock-details-page .card-body div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stock-details-page .metrics-list {
+    gap: 0.5rem;
+  }
+
+  .stock-details-page .metric-row {
+    padding: 0.75rem 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .stock-details-page .metric-row .metric-label {
+    font-size: 0.875rem;
+  }
+
+  .stock-details-page .metric-row .metric-value {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  /* Risk Analysis Page mobile optimizations */
+  .risk-analysis-page .card-body div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .risk-level-indicator {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+    max-width: 100% !important;
+  }
+  
+  .recommendations-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .risk-explanation {
+    display: block !important;
+  }
+}
+
 /* Stock Details Page */
 .metrics-list {
   display: flex;

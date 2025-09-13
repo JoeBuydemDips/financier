@@ -9,17 +9,6 @@ import {
   Loader2,
   Menu
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Area,
-  AreaChart
-} from 'recharts';
 import './App.css';
 import { NavigationTabs } from './components/NavigationTabs';
 import { MobileSidebar } from './components/MobileSidebar';
@@ -35,18 +24,18 @@ function App() {
   const [cadence, setCadence] = useState('monthly');
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState('2023-01-01');
-  const [results, setResults] = useState(null);
-  const [chartData, setChartData] = useState(null);
-  const [stockInfo, setStockInfo] = useState(null);
-  const [benchmarkData, setBenchmarkData] = useState(null);
-  const [riskMetrics, setRiskMetrics] = useState(null);
+  const [results, setResults] = useState<any>(null);
+  const [chartData, setChartData] = useState<any>(null);
+  const [stockInfo, setStockInfo] = useState<any>(null);
+  const [benchmarkData, setBenchmarkData] = useState<any>(null);
+  const [riskMetrics, setRiskMetrics] = useState<any>(null);
 
   const [loading, setLoading] = useState(false);
   const [stockInfoLoading, setStockInfoLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Chart controls state
-  const [chartType, setChartType] = useState('area');
+  const [chartType, setChartType] = useState<'area' | 'line'>('area');
   const [visibleSeries, setVisibleSeries] = useState({
     contributions: true,
     portfolioValue: true,
@@ -92,14 +81,14 @@ function App() {
   }, [ticker]);
 
   // Chart control handlers
-  const handleChartTypeChange = (type: string) => {
+  const handleChartTypeChange = (type: 'area' | 'line') => {
     setChartType(type);
   };
 
   const handleSeriesToggle = (series: string) => {
     setVisibleSeries(prev => ({
       ...prev,
-      [series]: !prev[series]
+      [series as keyof typeof prev]: !prev[series as keyof typeof prev]
     }));
   };
 
@@ -201,10 +190,10 @@ function App() {
       const benchmarkData = data.benchmark;
 
       const portfolio = {
-        dates: [],
-        values: [],
-        contributions: [],
-        benchmarkValues: []
+        dates: [] as string[],
+        values: [] as number[],
+        contributions: [] as number[],
+        benchmarkValues: [] as number[]
       };
 
       let totalContributed = 0;
@@ -226,8 +215,8 @@ function App() {
         const currentDate = new Date(day);
         const dateString = currentDate.toISOString().split('T')[0];
 
-        const marketDataForDay = historicalData.find(d => new Date(d.date).toISOString().split('T')[0] === dateString);
-        const benchmarkDataForDay = benchmarkData?.find(d => new Date(d.date).toISOString().split('T')[0] === dateString);
+        const marketDataForDay = historicalData.find((d: any) => new Date(d.date).toISOString().split('T')[0] === dateString);
+        const benchmarkDataForDay = benchmarkData?.find((d: any) => new Date(d.date).toISOString().split('T')[0] === dateString);
 
         if (currentDate >= nextContributionDate && marketDataForDay && benchmarkDataForDay) {
           totalContributed += contributionAmount;
@@ -338,7 +327,7 @@ function App() {
 
   // Transform data for Recharts
   const chartDataFormatted = chartData ? 
-    chartData.labels.map((date, index) => ({
+    chartData.labels.map((date: any, index: number) => ({
       date: new Date(date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
       contributions: chartData.datasets[0].data[index],
       portfolioValue: chartData.datasets[1].data[index],
@@ -570,10 +559,10 @@ function App() {
                 </motion.div>
               )}
 
-              {/* Page Content - Always Show */}
-              {!loading && !error && ((results && activeTab === 'overview') || activeTab !== 'overview') && (
+              {/* Page Content - Show based on activeTab */}
+              {!loading && !error && (
                 <>
-                  {activeTab === 'overview' && (
+                  {activeTab === 'overview' && results && (
                     <OverviewPage 
                       key="overview"
                       results={results}
@@ -591,11 +580,6 @@ function App() {
                   {activeTab === 'analytics' && (
                     <InvestmentComparisonPage 
                       key="analytics"
-                      results={results}
-                      contribution={contribution}
-                      cadence={cadence}
-                      startDate={startDate}
-                      endDate={endDate}
                     />
                   )}
 
@@ -614,46 +598,47 @@ function App() {
                       stockInfo={stockInfo}
                     />
                   )}
-                </>
-              )}
 
-              {!loading && !error && !((results && activeTab === 'overview') || activeTab !== 'overview') && (
-                /* Enhanced Empty State */
-                <motion.div
-                  key="empty-state"
-                  className="glass-card empty-state"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                >
-                  <div className="empty-state-content">
-                    <div className="empty-state-icon">
-                      <BarChart3 size={48} />
-                    </div>
-                    <h2 className="empty-state-title">Welcome to Financier</h2>
-                    <p className="empty-state-description">
-                      Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
-                    </p>
-                    
-                    <div className="popular-tickers">
-                      <h4>Popular Assets to Analyze:</h4>
-                      <div className="ticker-buttons">
-                        {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ', 'MSFT', 'GOOGL'].map((symbol) => (
-                          <motion.button
-                            key={symbol}
-                            className="ticker-button"
-                            onClick={() => setTicker(symbol)}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {symbol}
-                          </motion.button>
-                        ))}
+                  {/* Show empty state only for overview when no results */}
+                  {activeTab === 'overview' && !results && (
+                    /* Enhanced Empty State */
+                    <motion.div
+                      key="empty-state"
+                      className="glass-card empty-state"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.6, delay: 0.4 }}
+                    >
+                      <div className="empty-state-content">
+                        <div className="empty-state-icon">
+                          <BarChart3 size={48} />
+                        </div>
+                        <h2 className="empty-state-title">Welcome to Financier</h2>
+                        <p className="empty-state-description">
+                          Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
+                        </p>
+                        
+                        <div className="popular-tickers">
+                          <h4>Popular Assets to Analyze:</h4>
+                          <div className="ticker-buttons">
+                            {['SPY', 'AAPL', 'TSLA', 'NVDA', 'BTC-USD', 'QQQ', 'MSFT', 'GOOGL'].map((symbol) => (
+                              <motion.button
+                                key={symbol}
+                                className="ticker-button"
+                                onClick={() => setTicker(symbol)}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                {symbol}
+                              </motion.button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </motion.div>
+                    </motion.div>
+                  )}
+                </>
               )}
             </AnimatePresence>
           </div>
