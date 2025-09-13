@@ -6,7 +6,8 @@ import {
   Calendar, 
   BarChart3, 
   Target,
-  Loader2
+  Loader2,
+  Menu
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -21,6 +22,7 @@ import {
 } from 'recharts';
 import './App.css';
 import { NavigationTabs } from './components/NavigationTabs';
+import { MobileSidebar } from './components/MobileSidebar';
 import { OverviewPage } from './components/pages/OverviewPage';
 import { InvestmentComparisonPage } from './components/pages/InvestmentComparisonPage';
 import { StockDetailsPage } from './components/pages/StockDetailsPage';
@@ -53,6 +55,7 @@ function App() {
 
   // Navigation state
   const [activeTab, setActiveTab] = useState('overview');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Fetch stock information when ticker changes
   useEffect(() => {
@@ -103,6 +106,15 @@ function App() {
   // Navigation handler
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+  };
+
+  // Mobile sidebar handlers
+  const handleMobileSidebarOpen = () => {
+    setIsMobileSidebarOpen(true);
+  };
+
+  const handleMobileSidebarClose = () => {
+    setIsMobileSidebarOpen(false);
   };
 
   // Calculate risk metrics
@@ -342,6 +354,15 @@ function App() {
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
+        {/* Mobile Menu Button */}
+        <button 
+          className="mobile-menu-button"
+          onClick={handleMobileSidebarOpen}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={24} />
+        </button>
+
         <a href="#" className="brand">
           <TrendingUp size={24} style={{ marginRight: '8px', display: 'inline' }} />
           Financier
@@ -355,6 +376,14 @@ function App() {
           />
         </div>
       </motion.header>
+
+      {/* Mobile Sidebar */}
+      <MobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={handleMobileSidebarClose}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+      />
 
       <div className="app-container">
         <div className="app-grid">
