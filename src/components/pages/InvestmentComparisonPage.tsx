@@ -622,7 +622,7 @@ export const InvestmentComparisonPage = () => {
           </h3>
         </div>
         <div className="card-body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+          <div className="investment-strategy-grid">
             <div className="form-group">
               <label className="form-label">Initial Investment</label>
               <input
@@ -999,7 +999,7 @@ export const InvestmentComparisonPage = () => {
               </h3>
             </div>
             <div className="card-body">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+              <div className="investment-strategy-grid">
                 <motion.div 
                   className="metric-card"
                   whileHover={{ scale: 1.02 }}

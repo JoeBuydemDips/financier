@@ -2340,7 +2340,19 @@ body {
   min-height: 100%;
 }
 
-/* Mobile Responsive Adjustments */
+/* Investment Strategy Grid - Mobile Responsive */
+.investment-strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .investment-strategy-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+}
 @media (max-width: 768px) {
   .app-header {
     display: none; /* Hide desktop header on mobile */
@@ -2351,16 +2363,24 @@ body {
   }
   
   .app-container {
-    padding: 0; /* Remove padding on mobile for full screen */
+    padding: 1rem; /* Add padding back for better mobile UX */
     min-height: calc(100vh - 80px); /* Use min-height instead of height */
     overflow-y: auto; /* Enable scrolling */
     -webkit-overflow-scrolling: touch;
   }
   
   .app-grid {
-    gap: 0; /* Remove gap for seamless mobile experience */
+    grid-template-columns: 1fr; /* Single column on mobile */
+    gap: 1rem; /* Add some gap back for mobile spacing */
     min-height: 100%; /* Use min-height instead of height */
     overflow: visible; /* Allow overflow for scrolling */
+  }
+  
+  /* Ensure the sidebar content can expand to full width */
+  .app-grid > div {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
   }
   
   /* Ensure main content area is scrollable */
@@ -2368,12 +2388,13 @@ body {
     min-height: 100%; /* Use min-height instead of height */
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: 1rem;
+    padding: 0; /* Remove padding since app-container now has padding */
   }
   
   /* Form improvements for mobile */
   .form-group {
     margin-bottom: 1.5rem;
+    width: 100%; /* Ensure form groups take full width */
   }
   
   .form-input,
@@ -2381,6 +2402,44 @@ body {
     font-size: 16px; /* Prevent zoom on iOS */
     min-height: 44px; /* Touch target */
     width: 100%; /* Ensure full width on mobile */
+    box-sizing: border-box;
+    padding: 0.75rem 1rem; /* Ensure adequate padding */
+  }
+  
+  /* Specific targeting for number inputs */
+  input[type="number"] {
+    width: 100% !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+    padding: 0.75rem 1rem !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* CRITICAL: Override inline grid styles with higher specificity */
+  .investment-comparison-page div[style*="gridTemplateColumns"],
+  .glass-card div[style*="gridTemplateColumns"],
+  div[style*="repeat(auto-fit"],
+  [style*="grid"][style*="minmax(200px"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  /* Nuclear option: Force ALL grid containers to single column on mobile */
+  div[style*="grid"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Super specific targeting for the Investment Strategy section */
+  .investment-comparison-page .glass-card .card-body > div[style] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  /* Target the specific investment strategy grid */
+  .investment-strategy-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
   }
   
   /* Investment comparison page grid fix */
@@ -2412,6 +2471,12 @@ body {
     box-sizing: border-box !important;
   }
   
+  /* Specific fix for investment strategy grid */
+  .investment-comparison-page .card-body div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
   /* Button improvements */
   .btn-primary {
     min-height: 48px;
@@ -2420,7 +2485,36 @@ body {
   
   /* Card spacing for mobile */
   .glass-card {
-    margin: 0;
+    margin: 0 0 1rem 0; /* Add bottom margin for better spacing */
     border-radius: 1rem;
+  }
+  
+  /* Force any grid layouts to single column on mobile */
+  .glass-card .card-body > div[style*="grid"],
+  .glass-card .card-body > div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  /* Ensure all form elements are full width */
+  .glass-card .form-group,
+  .glass-card .form-input,
+  .glass-card .form-select,
+  .glass-card input,
+  .glass-card select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Specific targeting for the main calculator inputs */
+  .form-input[name="ticker"],
+  .form-input[name="contribution"],
+  .form-input[type="number"],
+  .form-input[type="date"],
+  .form-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
   }
 }
