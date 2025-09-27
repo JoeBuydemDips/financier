@@ -13,7 +13,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import type { DCAResult } from './types';
+import type { DCAResult, TimelinePoint } from './types';
 
 interface PerformanceChartsCardProps {
   isMobile: boolean;
@@ -21,7 +21,7 @@ interface PerformanceChartsCardProps {
     assets: DCAResult[];
     benchmark: DCAResult;
     portfolio: any;
-    timeline?: any[];
+    timeline?: TimelinePoint[];
   };
   chartType: 'bar' | 'area' | 'portfolio';
   setChartType: (t: 'bar' | 'area' | 'portfolio') => void;
@@ -166,6 +166,7 @@ const PerformanceChartsCard: React.FC<PerformanceChartsCardProps> = ({
             </BarChart>
           </ResponsiveContainer>
         ) : (
+          <>
           <ResponsiveContainer width="100%" height={500}>
             <LineChart data={results.timeline || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
@@ -180,6 +181,12 @@ const PerformanceChartsCard: React.FC<PerformanceChartsCardProps> = ({
               <Line type="monotone" dataKey="benchmark" stroke="#8b949e" strokeWidth={3} strokeDasharray="5 5" dot={false} name="📍 S&P 500" />
             </LineChart>
           </ResponsiveContainer>
+          {(!results.timeline || results.timeline.length === 0) && (
+            <div style={{ marginTop: '0.75rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Timeline data unavailable. Try recalculating or changing date range.
+            </div>
+          )}
+          </>
         )}
       </div>
     </motion.div>

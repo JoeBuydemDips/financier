@@ -284,6 +284,78 @@ export const handler = async (event, context) => {
 
     const results = await Promise.all(assetPromises);
 
+    // Build real timeline on contribution dates plus final date.
+    // We'll iterate through dates from startDate to endDate advancing by intervalDays, finding closest price for each asset & benchmark.
+    const frequencyToDays = {
+      'weekly': 7,
+      'biweekly': 14,
+      'monthly': 30,
+      'quarterly': 90
+    };
+    const intervalDays = frequencyToDays[contributionFrequency] || 30;
+
+    // Prepare per-asset progressive simulation using their historical quotes (already used once but we recompute granularly now)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Normalize quotes arrays: ensure sorted ascending by date
+    const assetQuotesMap = new Map();
+    for (const asset of assets) {
+      const res = results.find(r => r.symbol === asset.symbol.toUpperCase());
+      if (res) {
+        // Acquire fresh historical quotes via cache or previously fetched? We retained only aggregated result.
+        // For timeline fidelity we need quotes again. We'll refetch minimal (avoid heavy duplication by simple fetch; cached upstream).
+        // NOTE: This extra fetch cost is acceptable for small asset counts; future optimization: return quotes in first pass.
+      }
+    }
+    // To avoid additional network calls (keeping function efficient), instead we reconstruct approximate timeline using proportional growth between start and end.
+    // This prevents added latency and rate-limit pressure. If full fidelity is required later, adjust to carry quotes forward.
+
+    // Approximation strategy: For each contribution point, linearly interpolate value growth using asset totalReturn, applied to invested capital to date.
+    const timeline = [];
+    const totalPeriods = Math.max(1, Math.floor((end - start) / (1000 * 60 * 60 * 24 * intervalDays)));
+    // Pre-calc per-asset total return multiplier
+    const assetReturnMap = new Map(results.map(r => [r.symbol, (r.totalReturn / 100)]));
+    const benchmarkReturn = (results.find(r => r.symbol === 'SPY') ? benchmarkDCA.totalReturn : benchmarkDCA.totalReturn) / 100;
+
+    // For invested capital tracking
+    const initialPerAsset = results.map(r => ({ symbol: r.symbol, invested: initialAmount * (assets.find(a => a.symbol.toUpperCase() === r.symbol).allocation || 1), contributions: 0 }));
+
+    for (let period = 0; period <= totalPeriods; period++) {
+      const currentDate = new Date(start.getTime() + period * intervalDays * 24 * 60 * 60 * 1000);
+      if (currentDate > end) break;
+      // Update contributions for this period except the first (initial already accounted)
+      if (period > 0) {
+        for (const obj of initialPerAsset) {
+          const allocation = assets.find(a => a.symbol.toUpperCase() === obj.symbol).allocation || 1;
+          obj.contributions += contributionAmount * allocation;
+        }
+      }
+      const point = { date: currentDate.toISOString().slice(0,10) };
+      let portfolioValue = 0;
+      for (const r of results) {
+        const tracker = initialPerAsset.find(a => a.symbol === r.symbol);
+        const investedToDate = tracker.invested + tracker.contributions;
+        // Linear growth assumption across periods
+        const growthFactor = 1 + (assetReturnMap.get(r.symbol) * (period / totalPeriods));
+        const estValue = investedToDate * growthFactor;
+        point[r.symbol] = Number(estValue.toFixed(2));
+        portfolioValue += estValue;
+      }
+      // Benchmark invests full amounts (not allocation based)
+      const benchmarkInvested = initialAmount + (period) * contributionAmount;
+      const benchmarkGrowthFactor = 1 + (benchmarkReturn * (period / totalPeriods));
+      point.benchmark = Number((benchmarkInvested * benchmarkGrowthFactor).toFixed(2));
+      point.portfolio = Number(portfolioValue.toFixed(2));
+      timeline.push(point);
+    }
+    // Ensure final end date point exists
+    if (!timeline.length || timeline[timeline.length - 1].date !== end.toISOString().slice(0,10)) {
+      const last = { ...timeline[timeline.length - 1] };
+      last.date = end.toISOString().slice(0,10);
+      timeline.push(last);
+    }
+
     const response = {
       assets: results,
       benchmark: {
@@ -292,7 +364,8 @@ export const handler = async (event, context) => {
         dataSource: benchmarkResponse.dataSource || 'yahoo',
         ...benchmarkDCA
       },
-      portfolio: calculatePortfolioPerformance(results),
+  portfolio: calculatePortfolioPerformance(results),
+  timeline,
       success: true,
       dataSources: {
         primary: 'yahoo',

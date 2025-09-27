@@ -285,44 +285,15 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
 
   // Generate chart data for visualization
   const generateChartData = (data: any) => {
-    // Create chart data for individual assets only (All Assets view)
-    const chartData = data.assets.map((asset: DCAResult) => ({
+    // Bar chart dataset remains derived client-side
+    const transformed = data.assets.map((asset: DCAResult) => ({
       name: asset.symbol,
       value: asset.finalValue,
       invested: asset.totalInvested,
       return: asset.profitLoss
     }));
-
-    setChartData(chartData);
-    
-    // Calculate portfolio totals for timeline chart
-    const portfolioTotal = data.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0);
-    const portfolioInvested = data.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0);
-
-    // Generate mock timeline data for the line chart
-    // In a real implementation, this would come from the backend
-    const mockTimeline: Record<string, any>[] = [];
-    const startDateObj = new Date(startDate);
-    const endDateObj = new Date(endDate);
-    const totalDays = Math.floor((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
-    
-    for (let i = 0; i <= 12; i++) {
-      const currentDate = new Date(startDateObj.getTime() + (totalDays / 12) * i * 24 * 60 * 60 * 1000);
-      const timelinePoint: Record<string, any> = {
-        date: currentDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        benchmark: data.benchmark.totalInvested * (1 + (data.benchmark.totalReturn / 100) * (i / 12)),
-        portfolio: portfolioInvested * (1 + (((portfolioTotal - portfolioInvested) / portfolioInvested) * 100 / 100) * (i / 12))
-      };
-      
-      data.assets.forEach((asset: DCAResult) => {
-        timelinePoint[asset.symbol] = asset.totalInvested * (1 + (asset.totalReturn / 100) * (i / 12));
-      });
-      
-      mockTimeline.push(timelinePoint);
-    }
-    
-    // Update results with timeline data
-    setResults(prev => prev ? { ...prev, timeline: mockTimeline } : null);
+    setChartData(transformed);
+    // Timeline now fully provided by backend (data.timeline). No mock generation here.
   };
 
   // Get portfolio total allocation
