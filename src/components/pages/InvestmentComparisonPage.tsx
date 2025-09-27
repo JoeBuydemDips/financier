@@ -23,9 +23,7 @@ import {
   Legend,
   BarChart,
   Bar,
-  ComposedChart,
-  Area,
-  AreaChart
+  Cell
 } from 'recharts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
@@ -1241,35 +1239,34 @@ export const InvestmentComparisonPage = () => {
             </div>
             <div className="card-body">
               {chartType === 'portfolio' ? (
+                <>
                 <ResponsiveContainer width="100%" height={500}>
-                  <BarChart 
+                  <BarChart
                     data={[
                       {
                         name: 'Portfolio',
-                        ...results.assets.reduce((acc: any, asset: DCAResult) => {
-                          acc[asset.symbol] = asset.finalValue;
-                          return acc;
-                        }, {}),
-                        portfolioTotal: results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0)
+                        label: '🎯 Portfolio Total',
+                        type: 'portfolio',
+                        value: results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0)
                       },
                       {
                         name: 'S&P 500',
-                        'S&P 500': results.benchmark.finalValue,
-                        portfolioTotal: results.benchmark.finalValue
+                        label: '📍 S&P 500 Benchmark',
+                        type: 'benchmark',
+                        value: results.benchmark.finalValue
                       }
-                    ]} 
-                    margin={{ 
-                      top: 20, 
-                      right: 30, 
-                      left: 30, 
-                      bottom: 60 
+                    ]}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 30,
+                      bottom: 60
                     }}
-                    barGap={20}
-                    barSize={120}
+                    barCategoryGap="35%" /* widen gap so single bar visually centers */
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
-                    <XAxis 
-                      dataKey="name" 
+                    <XAxis
+                      dataKey="name"
                       stroke="#8b949e"
                       fontSize={12}
                       tick={{ fill: '#8b949e' }}
@@ -1277,16 +1274,16 @@ export const InvestmentComparisonPage = () => {
                       tickLine={{ stroke: '#30363d' }}
                       interval={0}
                     />
-                    <YAxis 
+                    <YAxis
                       stroke="#8b949e"
                       fontSize={isMobile ? 10 : 12}
                       tick={{ fill: '#8b949e' }}
                       axisLine={{ stroke: '#30363d' }}
                       tickLine={{ stroke: '#30363d' }}
-                      tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                       width={isMobile ? 40 : 50}
                     />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: 'rgba(22, 27, 34, 0.95)',
                         border: '1px solid #30363d',
@@ -1296,37 +1293,36 @@ export const InvestmentComparisonPage = () => {
                         backdropFilter: 'blur(12px)',
                         fontSize: isMobile ? '12px' : '14px'
                       }}
-                      formatter={(value, name) => [
-                        `$${Number(value).toLocaleString()}`,
-                        name === 'S&P 500' ? '📍 S&P 500 Benchmark' : `📊 ${name}`
+                      formatter={(val: any, _name: string, props: any) => [
+                        `$${Number(val).toLocaleString()}`,
+                        props.payload.label
                       ]}
                       labelStyle={{ color: '#58a6ff', fontWeight: '600' }}
                     />
-                    <Legend 
-                      wrapperStyle={{ 
-                        paddingTop: '20px'
-                      }}
-                      iconType="rect"
-                    />
-                    {results.assets.map((asset: DCAResult, index: number) => (
-                      <Bar
-                        key={asset.symbol}
-                        dataKey={asset.symbol}
-                        stackId="portfolio"
-                        fill={['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6]}
-                        name={`📊 ${asset.symbol}`}
-                        radius={index === results.assets.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                      />
-                    ))}
-                    <Bar 
-                      dataKey="S&P 500" 
-                      fill="#8b949e" 
-                      name="📍 S&P 500 Benchmark"
-                      radius={[4, 4, 4, 4]}
-                      opacity={0.8}
-                    />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {/* Ensure single bar per category (centers automatically) */}
+                      <Cell key="portfolio" fill="#00d395" />
+                      <Cell key="benchmark" fill="#8b949e" />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                <div style={{
+                  display: 'flex',
+                  gap: '2rem',
+                  justifyContent: 'center',
+                  marginTop: '1.25rem',
+                  fontSize: '0.9rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: '16px', height: '12px', background: '#00d395', borderRadius: '2px', display: 'inline-block' }} />
+                    <span style={{ color: 'var(--text-primary)' }}>🎯 Portfolio Total</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: '16px', height: '12px', background: '#8b949e', borderRadius: '2px', display: 'inline-block' }} />
+                    <span style={{ color: 'var(--text-primary)' }}>📍 S&P 500 Benchmark</span>
+                  </div>
+                </div>
+                </>
               ) : chartType === 'bar' ? (
                 <ResponsiveContainer width="100%" height={500}>
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
