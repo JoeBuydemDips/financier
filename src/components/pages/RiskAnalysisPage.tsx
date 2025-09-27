@@ -4,19 +4,20 @@ import {
   TrendingDown,
   Shield,
   Activity,
-  BarChart3,
-  TrendingUp
+  BarChart3
 } from 'lucide-react';
 import { FinancialTerm } from '../EducationalTooltip';
+import { RiskLegend } from '../RiskLegend';
 
 interface RiskAnalysisPageProps {
   riskMetrics: any;
   stockInfo: any;
+  beginnerMode?: boolean;
 }
 
 export const RiskAnalysisPage = ({
   riskMetrics,
-  stockInfo
+  beginnerMode = false
 }: RiskAnalysisPageProps) => {
   if (!riskMetrics) {
     return (
@@ -84,6 +85,65 @@ export const RiskAnalysisPage = ({
 
   const riskLevel = getRiskLevel();
 
+  if (beginnerMode) {
+    // Simplified risk summary only
+    const simpleVol = (riskMetrics.volatility * 100).toFixed(1);
+  return (
+      <motion.div 
+        className="risk-analysis-page"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div className="glass-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="card-header">
+            <h3 className="card-title">
+              <AlertTriangle size={20} />
+              Risk Snapshot
+            </h3>
+          </div>
+          <div className="card-body" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+            <p style={{ marginBottom: '0.75rem' }}>
+              Basic view: showing a quick risk snapshot. Switch off Beginner Mode for advanced metrics.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{
+                flex: '1 1 160px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.75rem'
+              }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.5px', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>VOLATILITY</div>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent-green)' }}>{simpleVol}%</div>
+              </div>
+              <div style={{
+                flex: '1 1 160px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.75rem'
+              }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.5px', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>BETA</div>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#58a6ff' }}>{riskMetrics.beta.toFixed(2)}</div>
+              </div>
+              <div style={{
+                flex: '1 1 160px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.75rem'
+              }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.5px', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>MAX DRAWDOWN</div>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent-red)' }}>-{(riskMetrics.maxDrawdown * 100).toFixed(1)}%</div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       className="risk-analysis-page"
@@ -120,6 +180,29 @@ export const RiskAnalysisPage = ({
               </div>
             </div>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Risk Legend */}
+      <motion.div
+        className="glass-card"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <div className="card-header">
+          <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Shield size={20} />
+            Risk Metric Legend
+          </h3>
+        </div>
+        <div className="card-body">
+          <RiskLegend 
+            volatility={riskMetrics.volatility}
+            sharpe={riskMetrics.sharpeRatio}
+            maxDrawdown={riskMetrics.maxDrawdown}
+            beta={riskMetrics.beta}
+          />
         </div>
       </motion.div>
 

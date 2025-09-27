@@ -671,7 +671,7 @@ export const InvestmentComparisonPage = () => {
                           fontSize: '0.75rem',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          background: autoBalanceEnabled ? 'rgba(0,211,149,0.15)' : 'var(--bg-tertiary)',
+                          background: autoBalanceEnabled ? 'rgba(0,211,149,0.18)' : 'var(--bg-tertiary)',
                           border: autoBalanceEnabled ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
                           padding: isMobile ? '0.75rem 0.85rem' : '0.45rem 0.7rem',
                           borderRadius: 'var(--radius-sm)',
@@ -683,7 +683,7 @@ export const InvestmentComparisonPage = () => {
                         aria-label="Toggle auto-balance equal weighting"
                         title="Automatically keep all assets equally weighted"
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: autoBalanceEnabled ? 'var(--accent-green)' : 'var(--text-primary)' }}>
                           <span style={{
                             width: 18,
                             height: 18,
@@ -700,7 +700,7 @@ export const InvestmentComparisonPage = () => {
                         <span style={{
                           fontSize: '0.6rem',
                           letterSpacing: '0.5px',
-                          color: autoBalanceEnabled ? 'var(--accent-green)' : 'var(--text-muted)',
+                          color: autoBalanceEnabled ? 'var(--accent-green)' : 'var(--text-secondary)',
                           fontWeight: 600
                         }}>{autoBalanceEnabled ? 'ON' : 'OFF'}</span>
                       </button>
@@ -1286,7 +1286,9 @@ export const InvestmentComparisonPage = () => {
           <div style={{ 
             marginTop: '2rem', 
             display: 'flex', 
-            justifyContent: 'center' 
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%'
           }}>
             <motion.button
               className="btn-primary"
@@ -1295,10 +1297,16 @@ export const InvestmentComparisonPage = () => {
               whileHover={{ scale: selectedAssets.length > 0 && isValidAllocation() ? 1.02 : 1 }}
               whileTap={{ scale: selectedAssets.length > 0 && isValidAllocation() ? 0.98 : 1 }}
               style={{ 
-                width: isMobile ? '100%' : '80%', 
-                maxWidth: isMobile ? 'none' : '300px',
+                width: isMobile ? '100%' : '80%',
+                maxWidth: isMobile ? 'none' : '340px',
                 opacity: selectedAssets.length === 0 || !isValidAllocation() ? 0.6 : 1,
-                minHeight: isMobile ? '48px' : '3.125rem'
+                minHeight: isMobile ? '52px' : '3.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: isMobile ? '0.75rem 1rem' : '0.75rem 1.25rem',
+                lineHeight: 1.1,
+                whiteSpace: 'nowrap'
               }}
               title={
                 selectedAssets.length === 0 ? 'Please select at least one asset' :
@@ -1307,45 +1315,69 @@ export const InvestmentComparisonPage = () => {
               }
             >
               {isCalculating ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div className="spinner" style={{ width: '16px', height: '16px' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: isMobile ? '0.95rem' : '1rem' }}>
+                  <div className="spinner" style={{ width: '18px', height: '18px' }} />
                   Calculating...
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Calculator size={16} />
-                  Calculate Performance
-                  {selectedAssets.length > 0 && !isValidAllocation() && (
-                    <span style={{ 
-                      fontSize: '0.75rem', 
-                      opacity: 0.8,
-                      marginLeft: '0.25rem'
-                    }}>
-                      (Fix allocation first)
-                    </span>
-                  )}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.6rem', 
+                  fontSize: isMobile ? '0.95rem' : '1rem',
+                  fontWeight: 600
+                }}>
+                  <Calculator size={18} />
+                  {isMobile ? 'Run Simulation' : 'Calculate Performance'}
                 </div>
               )}
             </motion.button>
-            
-            {/* Validation feedback */}
+
+            {/* Inline hint when invalid allocation, kept very compact */}
             {selectedAssets.length > 0 && !isValidAllocation() && (
               <div style={{
-                marginTop: '0.75rem',
-                padding: '0.75rem',
-                background: getAllocationStatus() === 'over' ? 'rgba(255, 107, 107, 0.1)' : 'rgba(255, 159, 67, 0.1)',
-                border: `1px solid ${getAllocationStatus() === 'over' ? 'rgba(255, 107, 107, 0.3)' : 'rgba(255, 159, 67, 0.3)'}`,
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.875rem',
-                color: getAllocationStatus() === 'over' ? 'var(--accent-red)' : '#ff9f43',
-                textAlign: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
+                width: isMobile ? '100%' : '80%',
+                maxWidth: isMobile ? 'none' : '340px',
+                marginTop: '0.5rem',
+                fontSize: '0.65rem',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                textAlign: 'center'
               }}>
-                ⚠️ Total allocation is {formatTotalAllocation(getTotalAllocation())}% - 
-                {getAllocationStatus() === 'over' ? ' reduce some allocations' : ' increase allocations to 100%'}
+                Adjust allocations to enable
+              </div>
+            )}
+            
+            {/* Validation feedback (stacked below button) */}
+            {selectedAssets.length > 0 && !isValidAllocation() && (
+              <div
+                role="alert"
+                aria-live="polite"
+                style={{
+                  width: isMobile ? '100%' : '80%',
+                  maxWidth: isMobile ? 'none' : '340px',
+                  marginTop: '0.6rem',
+                  padding: '0.85rem 0.9rem',
+                  background: getAllocationStatus() === 'over' ? 'rgba(255, 107, 107, 0.12)' : 'rgba(255, 159, 67, 0.12)',
+                  border: `1px solid ${getAllocationStatus() === 'over' ? 'rgba(255, 107, 107, 0.35)' : 'rgba(255, 159, 67, 0.35)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  lineHeight: 1.3,
+                  color: getAllocationStatus() === 'over' ? 'var(--accent-red)' : '#ff9f43',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <span aria-hidden="true">⚠️</span>
+                <strong>Total allocation is {formatTotalAllocation(getTotalAllocation())}%</strong>
+                <span>
+                  {getAllocationStatus() === 'over' ? 'Reduce some allocations.' : 'Increase allocations to reach 100%.'}
+                </span>
               </div>
             )}
           </div>
