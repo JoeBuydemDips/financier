@@ -12,9 +12,11 @@ interface MobileSidebarProps {
   onClose: () => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  beginnerMode?: boolean;
+  toggleBeginnerMode?: () => void;
 }
 
-export const MobileSidebar = ({ isOpen, onClose, activeTab, onTabChange }: MobileSidebarProps) => {
+export const MobileSidebar = ({ isOpen, onClose, activeTab, onTabChange, beginnerMode, toggleBeginnerMode }: MobileSidebarProps) => {
   const tabs = [
     {
       id: 'overview',
@@ -121,8 +123,29 @@ export const MobileSidebar = ({ isOpen, onClose, activeTab, onTabChange }: Mobil
             </div>
 
             {/* Footer */}
-            <div className="mobile-sidebar-footer">
-              <div className="mobile-sidebar-footer-text">
+            <div className="mobile-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {typeof beginnerMode === 'boolean' && toggleBeginnerMode && (
+                <button
+                  onClick={toggleBeginnerMode}
+                  aria-pressed={beginnerMode}
+                  aria-label="Toggle beginner mode"
+                  style={{
+                    background: beginnerMode ? 'rgba(0,211,149,0.18)' : 'var(--bg-tertiary)',
+                    border: beginnerMode ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
+                    color: beginnerMode ? 'var(--accent-green)' : 'var(--text-secondary)',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.5px',
+                    padding: '0.55rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  {beginnerMode ? 'BEGINNER: ON' : 'BEGINNER: OFF'}
+                </button>
+              )}
+              <div className="mobile-sidebar-footer-text" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                 Swipe or tap outside to close
               </div>
             </div>

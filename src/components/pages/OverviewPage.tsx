@@ -31,6 +31,7 @@ interface OverviewPageProps {
   visibleSeries: any;
   onChartTypeChange: (type: 'area' | 'line') => void;
   onSeriesToggle: (series: string) => void;
+  beginnerMode?: boolean;
 }
 
 export const OverviewPage = ({
@@ -42,7 +43,8 @@ export const OverviewPage = ({
   chartType,
   visibleSeries,
   onChartTypeChange,
-  onSeriesToggle
+  onSeriesToggle,
+  beginnerMode = false
 }: OverviewPageProps) => {
   return (
     <div className="overview-page">
@@ -85,7 +87,7 @@ export const OverviewPage = ({
               className="metric-card"
               whileHover={{ scale: 1.02 }}
             >
-              <div className="metric-label">Profit/Loss</div>
+              <div className="metric-label">{beginnerMode ? 'Gain' : 'Profit/Loss'}</div>
               <div className={`metric-value ${results.profitLoss >= 0 ? 'positive' : 'negative'}`}>
                 {results.profitLoss >= 0 ? (
                   <ArrowUpRight size={24} style={{ marginRight: '4px', display: 'inline' }} />
@@ -104,7 +106,7 @@ export const OverviewPage = ({
               whileHover={{ scale: 1.02 }}
             >
               <div className="metric-label">
-                <FinancialTerm term="Annualized Return">Annualized Return</FinancialTerm>
+                {beginnerMode ? 'Yearly %' : <FinancialTerm term="Annualized Return">Annualized Return</FinancialTerm>}
               </div>
               <div className={`metric-value ${results.annualizedRoi >= 0 ? 'positive' : 'negative'}`}>
                 {results.annualizedRoi.toFixed(1)}%
@@ -229,7 +231,7 @@ export const OverviewPage = ({
                           fill="url(#portfolioGradient)"
                         />
                       )}
-                      {visibleSeries.benchmarkValue && (
+                      {visibleSeries.benchmarkValue && !beginnerMode && (
                         <Area
                           type="monotone"
                           dataKey="benchmarkValue"
@@ -311,7 +313,7 @@ export const OverviewPage = ({
                           dot={false}
                         />
                       )}
-                      {visibleSeries.benchmarkValue && (
+                      {visibleSeries.benchmarkValue && !beginnerMode && (
                         <Line
                           type="monotone"
                           dataKey="benchmarkValue"
@@ -325,6 +327,7 @@ export const OverviewPage = ({
                 </ResponsiveContainer>
               </div>
             </div>
+            {!beginnerMode && (
             <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--bg-quaternary)', borderRadius: 'var(--radius-sm)' }}>
               <div className="performance-comparison">
                 {Math.abs(results.annualizedRoi - benchmarkData.annualizedRoi) < 0.05 ? (
@@ -344,13 +347,13 @@ export const OverviewPage = ({
                   </div>
                 )}
               </div>
-            </div>
+            </div>) }
           </div>
         </motion.div>
       )}
 
       {/* Benchmark Comparison - Moved to 3rd position */}
-      {benchmarkData && (
+      {benchmarkData && !beginnerMode && (
         <motion.div 
           className="glass-card"
           initial={{ opacity: 0, y: 20 }}
@@ -413,7 +416,7 @@ export const OverviewPage = ({
       )}
 
       {/* Key Risk Metrics - Moved to 4th position */}
-      {riskMetrics && (
+      {riskMetrics && !beginnerMode && (
         <motion.div 
           className="glass-card"
           initial={{ opacity: 0, y: 20 }}

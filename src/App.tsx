@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -6,8 +6,7 @@ import {
   Calendar, 
   BarChart3, 
   Target,
-  Loader2,
-  Menu
+  Loader2
 } from 'lucide-react';
 import './App.css';
 import { NavigationTabs } from './components/NavigationTabs';
@@ -18,6 +17,15 @@ import { OverviewPage } from './components/pages/OverviewPage';
 import { InvestmentComparisonPage } from './components/pages/InvestmentComparisonPage';
 import { StockDetailsPage } from './components/pages/StockDetailsPage';
 import { RiskAnalysisPage } from './components/pages/RiskAnalysisPage';
+
+// Beginner Mode Context (lightweight)
+interface BeginnerModeContextValue { beginnerMode: boolean; toggleBeginnerMode: () => void; }
+const BeginnerModeContext = createContext<BeginnerModeContextValue | undefined>(undefined);
+export const useBeginnerMode = () => {
+  const ctx = useContext(BeginnerModeContext);
+  if (!ctx) throw new Error('useBeginnerMode must be used within BeginnerModeContext provider');
+  return ctx;
+};
 
 
 function App() {
@@ -31,6 +39,10 @@ function App() {
   const [stockInfo, setStockInfo] = useState<any>(null);
   const [benchmarkData, setBenchmarkData] = useState<any>(null);
   const [riskMetrics, setRiskMetrics] = useState<any>(null);
+  const [beginnerMode, setBeginnerMode] = useState<boolean>(() => {
+    // persist preference
+    try { return localStorage.getItem('beginnerMode') === 'true'; } catch { return false; }
+  });
 
   const [loading, setLoading] = useState(false);
   const [stockInfoLoading, setStockInfoLoading] = useState(false);
@@ -118,6 +130,14 @@ function App() {
 
   const handleMobileSidebarClose = () => {
     setIsMobileSidebarOpen(false);
+  };
+
+  const toggleBeginnerMode = () => {
+    setBeginnerMode(prev => {
+      const next = !prev;
+      try { localStorage.setItem('beginnerMode', String(next)); } catch {}
+      return next;
+    });
   };
 
   // Calculate risk metrics
@@ -348,15 +368,30 @@ function App() {
       benchmarkValue: chartData.datasets[2]?.data[index] || 0,
     })) : [];
 
+  const loadExample = () => {
+    setTicker('AAPL');
+    setContribution('300');
+    setCadence('monthly');
+    setStartDate('2020-01-01');
+    setEndDate(new Date().toISOString().split('T')[0]);
+    // Run calculation after state updates (microtask defer)
+    setTimeout(() => {
+      calculateReturns();
+    }, 0);
+  };
+
   return (
-    <div className="app">
+  <BeginnerModeContext.Provider value={{ beginnerMode, toggleBeginnerMode }}>
+  <div className="app">
       {/* Conditional Header - Mobile vs Desktop */}
       {isMobile ? (
         <MobileHeader
           activeTab={activeTab}
-          onBackClick={handleMobileBack}
-          onMenuClick={handleMobileSidebarOpen}
-          isOverview={activeTab === 'overview'}
+            onBackClick={handleMobileBack}
+            onMenuClick={handleMobileSidebarOpen}
+            isOverview={activeTab === 'overview'}
+            beginnerMode={beginnerMode}
+            toggleBeginnerMode={toggleBeginnerMode}
         />
       ) : (
         /* Desktop Header with Navigation */
@@ -365,28 +400,44 @@ function App() {
           initial={{ y: -100 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
+          style={{ gridTemplateColumns: 'auto 1fr auto' }}
         >
-          {/* Mobile Menu Button (hidden on desktop) */}
-          <button 
-            className="mobile-menu-button"
-            onClick={handleMobileSidebarOpen}
-            aria-label="Open navigation menu"
-          >
-            <Menu size={24} />
-          </button>
-
-          <a href="#" className="brand">
+          {/* Brand (Left) */}
+          <a href="#" className="brand" style={{ justifySelf: 'start' }}>
             <TrendingUp size={24} style={{ marginRight: '8px', display: 'inline' }} />
             Financier
           </a>
-          
-          {/* Header Navigation */}
-          <div className="header-navigation">
+
+          {/* Navigation (Center) */}
+          <div className="header-navigation" style={{ justifySelf: 'center' }}>
             <NavigationTabs 
               activeTab={activeTab}
               onTabChange={handleTabChange}
             />
           </div>
+
+            {/* Actions (Right) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifySelf: 'end' }}>
+              <button
+                onClick={toggleBeginnerMode}
+                aria-pressed={beginnerMode}
+                aria-label="Toggle beginner mode"
+                style={{
+                  background: beginnerMode ? 'rgba(0,211,149,0.18)' : 'var(--bg-tertiary)',
+                  border: beginnerMode ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
+                  color: beginnerMode ? 'var(--accent-green)' : 'var(--text-secondary)',
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.5px',
+                  padding: '0.4rem 0.6rem',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer'
+                }}
+                title="Beginner Mode hides advanced metrics"
+              >
+                {beginnerMode ? 'BEGINNER: ON' : 'BEGINNER: OFF'}
+              </button>
+            </div>
         </motion.header>
       )}
 
@@ -396,9 +447,11 @@ function App() {
         onClose={handleMobileSidebarClose}
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        beginnerMode={beginnerMode}
+        toggleBeginnerMode={toggleBeginnerMode}
       />
 
-      <div className={`app-container ${isMobile ? 'mobile-container' : ''}`}>
+  <div className={`app-container ${isMobile ? 'mobile-container' : ''}`}>
         <div className={`app-grid ${isMobile ? 'mobile-grid' : ''}`}>
           {/* Left Sidebar - Conditional rendering for mobile */}
           {(!isMobile || activeTab === 'overview') && (
@@ -640,6 +693,7 @@ function App() {
                           visibleSeries={visibleSeries}
                           onChartTypeChange={handleChartTypeChange}
                           onSeriesToggle={handleSeriesToggle}
+                          beginnerMode={beginnerMode}
                         />
                       ) : (
                         /* Enhanced Empty State */
@@ -652,7 +706,18 @@ function App() {
                             <p className="empty-state-description">
                               Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
                             </p>
-                            
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={loadExample}
+                                className="btn-primary"
+                                style={{ fontWeight: 600 }}
+                                aria-label="Load example simulation"
+                              >
+                                ⚡ Load Example (AAPL 2020–Today)
+                              </motion.button>
+                            </div>
                             <div className="popular-tickers">
                               <h4>Popular Assets to Analyze:</h4>
                               <div className="ticker-buttons">
@@ -663,6 +728,7 @@ function App() {
                                     onClick={() => setTicker(symbol)}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
+                                    aria-label={`Set ticker to ${symbol}`}
                                   >
                                     {symbol}
                                   </motion.button>
@@ -713,6 +779,7 @@ function App() {
                       <RiskAnalysisPage 
                         riskMetrics={riskMetrics}
                         stockInfo={stockInfo}
+                        beginnerMode={beginnerMode}
                       />
                     </motion.div>
                   )}
@@ -723,6 +790,7 @@ function App() {
         </div>
       </div>
     </div>
+    </BeginnerModeContext.Provider>
   );
 }
 

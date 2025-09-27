@@ -1,5 +1,7 @@
 # 📈 Financier
 
+![CI](https://github.com/JoeBuydemDips/financier/actions/workflows/ci.yml/badge.svg)
+
 > Investment Analysis Platform
 
 Financier is an investment analysis platform designed to help anyone regardless of experience see what they could have achieved by investing, and to demystify the process of building wealth. Built with Netlify Functions for scalable, serverless backend operations and powered by real-time stock data, historical performance validation, and clear risk analytics, Financier empowers users to discover that investing doesn't have to be complicated or intimidating. Whether you're curious about "what if I had invested in Apple five years ago?" or want to compare strategies, Financier makes it easy to learn from the past and make confident decisions for the future.
@@ -258,6 +260,54 @@ When running locally with `netlify dev`, the following API endpoints are availab
 - `GET /.netlify/functions/history/{ticker}?startDate={date}&endDate={date}` - Get historical data
 - `GET /.netlify/functions/search/{query}` - Search for stocks
 - `POST /.netlify/functions/calculate-dca` - Calculate DCA performance
+
+### 🧪 Testing
+
+Vitest + Testing Library power the unit and (soon) component tests.
+
+Scripts:
+
+```bash
+npm run test          # run test suite once
+npm run test:watch    # watch mode
+npm run test:coverage # generate coverage report (text + lcov)
+```
+
+Current coverage focus: core allocation utilities (`src/utils/allocation.ts`) ensuring correctness before advanced performance refactors. Add new tests under `src/**/*.test.ts(x)`.
+
+#### Required Status Checks
+
+The GitHub Actions workflow (`ci.yml`) runs automatically on every push and pull request targeting `main`. To enforce passing tests before merges:
+
+1. In your GitHub repository go to Settings > Branches.
+2. Add a branch protection rule for `main`.
+3. Enable "Require status checks to pass before merging".
+4. Select the "CI" workflow (it will appear after it runs at least once).
+5. (Optional) Enable "Require branches to be up to date" to force re-run after rebases.
+
+This ensures no Pull Request can merge unless the Vitest suite succeeds.
+
+Current coverage focus: core allocation utilities (`src/utils/allocation.ts`) ensuring correctness before advanced performance refactors. Add new tests under `src/**/*.test.ts(x)`.
+
+### ⚡ Performance Optimizations Implemented
+
+- Code splitting with `React.lazy` + `Suspense` for heavy comparison result components (charts, table, summary)
+- Vendor chunk separation via Vite `manualChunks` (react, charts, framer-motion) for better browser caching
+- Memoization (`useMemo`) of derived allocation totals & chart data to cut unnecessary renders
+- Extraction of pure allocation helpers for fast unit tests and easier profiling
+- Server-provided performance timeline eliminates client mock generation work
+- Lightweight loading fallbacks to avoid layout shift during dynamic import
+
+Planned (not yet implemented):
+
+- Finer-grained memoization in chart subcomponents
+- Timeline fidelity upgrade (quote-driven rather than interpolated smoothing)
+- Accessibility pass for chart summaries / legends
+- Lightweight client performance metrics panel (LCP & fetch timing aggregation)
+
+### ⏱️ Instrumentation
+
+The investment comparison page records the last DCA calculation duration (ms) post-fetch for quick feedback on backend performance.
 
 ## 📄 License
 

@@ -7,6 +7,8 @@ interface MobileHeaderProps {
   onBackClick: () => void;
   onMenuClick: () => void;
   isOverview: boolean;
+  beginnerMode?: boolean;
+  toggleBeginnerMode?: () => void;
 }
 
 const tabTitles: Record<string, string> = {
@@ -21,7 +23,9 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   activeTab,
   onBackClick,
   onMenuClick,
-  isOverview
+  isOverview,
+  beginnerMode,
+  toggleBeginnerMode
 }) => {
   const title = tabTitles[activeTab] || 'Financier';
 
@@ -58,17 +62,39 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
           {title}
         </motion.h1>
 
-        {/* Right side - Menu button (only show on non-overview pages) */}
-        {!isOverview && (
-          <motion.button
-            className="mobile-header-button"
-            onClick={onMenuClick}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Menu size={20} />
-          </motion.button>
-        )}
+        {/* Right side - Beginner toggle + Menu (non-overview) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {typeof beginnerMode === 'boolean' && toggleBeginnerMode && (
+            <button
+              onClick={toggleBeginnerMode}
+              aria-pressed={beginnerMode}
+              aria-label="Toggle beginner mode"
+              style={{
+                background: beginnerMode ? 'rgba(0,211,149,0.18)' : 'rgba(255,255,255,0.08)',
+                border: beginnerMode ? '1px solid var(--accent-green)' : '1px solid rgba(255,255,255,0.15)',
+                color: beginnerMode ? 'var(--accent-green)' : 'var(--text-secondary)',
+                fontSize: '0.55rem',
+                fontWeight: 600,
+                letterSpacing: '0.5px',
+                padding: '0.35rem 0.5rem',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              {beginnerMode ? 'BEGINNER: ON' : 'BEGINNER: OFF'}
+            </button>
+          )}
+          {!isOverview && (
+            <motion.button
+              className="mobile-header-button"
+              onClick={onMenuClick}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Menu size={20} />
+            </motion.button>
+          )}
+        </div>
       </div>
     </motion.header>
   );

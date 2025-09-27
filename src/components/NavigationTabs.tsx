@@ -15,27 +15,27 @@ export const NavigationTabs = ({ activeTab, onTabChange }: NavigationTabsProps) 
   const tabs = [
     {
       id: 'overview',
-      label: 'Overview',
+      label: 'Single Asset', // was Overview
       icon: <BarChart3 size={18} />,
-      description: 'Investment results and key metrics'
+      description: 'Simulate one asset'
     },
     {
       id: 'analytics',
-      label: 'Investment Comparison',
+      label: 'Portfolio Builder', // was Investment Comparison
       icon: <TrendingUp size={18} />,
-      description: 'Compare stocks and strategies'
+      description: 'Compare allocations'
     },
     {
       id: 'stock',
-      label: 'Stock Details',
+      label: 'Fundamentals', // was Stock Details
       icon: <Building2 size={18} />,
-      description: 'Company information and financials'
+      description: 'Company metrics'
     },
     {
       id: 'risk',
-      label: 'Risk Analysis',
+      label: 'Risk', // was Risk Analysis
       icon: <AlertTriangle size={18} />,
-      description: 'Detailed risk metrics'
+      description: 'Volatility & drawdown'
     }
   ];
 

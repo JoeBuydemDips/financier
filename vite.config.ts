@@ -7,5 +7,18 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React libs
+          react: ['react', 'react-dom'],
+          // Visualization heavy libs
+          charts: ['recharts'],
+          motion: ['framer-motion']
+        }
+      }
+    }
   }
 })
