@@ -81,8 +81,32 @@ export const handler = async (event, context) => {
     };
   }
 
-  // Normalize search query to uppercase for better matching (btc -> BTC)
+  // Normalize and expand search query for better crypto matching
   const query = rawQuery.toUpperCase();
+  
+  // Create multiple search variations for crypto
+  const searchQueries = [query];
+  
+  // If query looks like a crypto symbol (3-5 chars, no special chars), add -USD variant
+  if (/^[A-Z]{3,5}$/.test(query) && !query.endsWith('-USD')) {
+    searchQueries.push(`${query}-USD`);
+  }
+  
+  // Also try common crypto variations
+  const cryptoMappings = {
+    'BITCOIN': 'BTC-USD',
+    'ETHEREUM': 'ETH-USD',
+    'BTC': 'BTC-USD',
+    'ETH': 'ETH-USD',
+    'ADA': 'ADA-USD',
+    'DOT': 'DOT-USD',
+    'SOL': 'SOL-USD',
+    'DOGE': 'DOGE-USD'
+  };
+  
+  if (cryptoMappings[query]) {
+    searchQueries.push(cryptoMappings[query]);
+  }
 
   const cacheKey = getCacheKey('search', { query });
 
@@ -99,22 +123,49 @@ export const handler = async (event, context) => {
   try {
     await delay(200);
     
-    // Use fallback system to search for stocks
-    const searchResults = await fetchSearchWithFallback(decodeURIComponent(query), async (searchQuery) => {
-      // Yahoo Finance search function
-      const results = await yahooFinance.search(searchQuery);
-      
-      // Filter and format results for stocks only
-      return results.quotes
-        .filter(result => result.typeDisp === 'Equity')
-        .slice(0, 10) // Limit to top 10 results
-        .map(result => ({
-          symbol: result.symbol,
-          shortname: result.shortname || result.longname,
-          exchange: result.exchDisp,
-          type: result.typeDisp
-        }));
-    });
+    // Use fallback system to search across multiple query variations
+    let allResults = [];
+    
+    for (const searchQuery of searchQueries) {
+      try {
+        const results = await fetchSearchWithFallback(decodeURIComponent(searchQuery), async (sq) => {
+          // Yahoo Finance search function
+          const searchResults = await yahooFinance.search(sq);
+          
+          // Filter and format results for multiple asset types
+          return searchResults.quotes
+            .filter(result => {
+              // Include Equity (stocks), ETFs, and Cryptocurrency
+              const allowedTypes = ['Equity', 'ETF', 'Cryptocurrency'];
+              return allowedTypes.includes(result.typeDisp);
+            })
+            .slice(0, 15) // Increased limit for more diverse results
+            .map(result => ({
+              symbol: result.symbol,
+              shortName: result.shortname || result.longname, // Match frontend expectation
+              shortname: result.shortname || result.longname, // Keep backward compatibility
+              exchange: result.exchDisp,
+              quoteType: result.typeDisp, // Match frontend expectation
+              type: result.typeDisp,
+              typeDisp: result.typeDisp
+            }));
+        });
+        
+        if (results && results.length > 0) {
+          allResults.push(...results);
+        }
+      } catch (error) {
+        console.log(`Search failed for query: ${searchQuery}`, error.message);
+        // Continue with next search query
+      }
+    }
+    
+    // Remove duplicates based on symbol and limit results
+    const uniqueResults = Array.from(
+      new Map(allResults.map(item => [item.symbol, item])).values()
+    ).slice(0, 15);
+    
+    const searchResults = uniqueResults;
 
     // Cache successful response
     setCache(cacheKey, searchResults);

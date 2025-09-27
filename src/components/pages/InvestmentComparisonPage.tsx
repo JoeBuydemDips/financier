@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BarChart3,
@@ -9,7 +9,8 @@ import {
   Target,
   Calculator,
   PieChart,
-  Activity
+  Activity,
+  Minus
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -23,6 +24,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface Asset {
   symbol: string;
@@ -47,11 +49,16 @@ interface DCAResult {
 }
 
 export const InvestmentComparisonPage = () => {
+  const isMobile = useIsMobile();
+  
   // Asset Selection State
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Input state for allocation editing (to handle cursor position properly)
+  const [allocationInputs, setAllocationInputs] = useState<Record<string, string>>({});
 
   // DCA Parameters
   const [initialAmount, setInitialAmount] = useState('1000');
@@ -69,7 +76,7 @@ export const InvestmentComparisonPage = () => {
   } | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [chartData, setChartData] = useState([]);
-  const [chartType, setChartType] = useState<'bar' | 'area'>('bar');
+  const [chartType, setChartType] = useState<'bar' | 'area' | 'portfolio'>('bar');
 
   // Search for assets
   const searchAssets = async (query: string) => {
@@ -125,6 +132,9 @@ export const InvestmentComparisonPage = () => {
     setSelectedAssets([...rebalancedAssets, newAsset]);
     setSearchQuery('');
     setSearchResults([]);
+    
+    // Clear input states since allocations have changed
+    setAllocationInputs({});
   };
 
   // Remove asset
@@ -136,15 +146,101 @@ export const InvestmentComparisonPage = () => {
       allocation: 1 / filtered.length
     }));
     setSelectedAssets(rebalanced);
+    
+    // Clear input states since allocations have changed
+    setAllocationInputs({});
   };
 
-  // Update asset allocation
-  const updateAllocation = (symbol: string, allocation: number) => {
+  // Get display value for input (either from input state or formatted allocation)
+  const getInputValue = useCallback((symbol: string) => {
+    if (allocationInputs[symbol] !== undefined) {
+      return allocationInputs[symbol];
+    }
+    const asset = selectedAssets.find(a => a.symbol === symbol);
+    return asset ? (asset.allocation * 100).toFixed(2) : '0.00';
+  }, [allocationInputs, selectedAssets]);
+
+  // Update asset allocation with validation
+  const updateAllocation = useCallback((symbol: string, allocation: number) => {
+    // Clamp allocation between 0 and 100 and round to 2 decimal places
+    const clampedAllocation = Math.min(Math.max(0, parseFloat(allocation.toFixed(2))), 100);
+    
     const updated = selectedAssets.map(asset => 
-      asset.symbol === symbol ? { ...asset, allocation: allocation / 100 } : asset
+      asset.symbol === symbol ? { ...asset, allocation: clampedAllocation / 100 } : asset
     );
     setSelectedAssets(updated);
-  };
+    
+    // Clear the input state for this symbol since we've updated the actual value
+    setAllocationInputs(prev => {
+      const next = { ...prev };
+      delete next[symbol];
+      return next;
+    });
+  }, [selectedAssets]);
+
+  // Handle direct input changes - store in temporary input state
+  const handleAllocationChange = useCallback((symbol: string, value: string) => {
+    // Allow empty string for editing
+    if (value === '') {
+      setAllocationInputs(prev => ({
+        ...prev,
+        [symbol]: value
+      }));
+      return;
+    }
+    
+    // Validate input format - allow digits and one decimal point with up to 2 decimal places
+    const decimalRegex = /^\d*\.?\d{0,2}$/;
+    
+    if (decimalRegex.test(value)) {
+      setAllocationInputs(prev => ({
+        ...prev,
+        [symbol]: value
+      }));
+    }
+    // If invalid format, don't update the input state (effectively preventing the input)
+  }, []);
+
+  // Handle when input loses focus - validate and update actual allocation
+  const handleAllocationBlur = useCallback((symbol: string, value: string) => {
+    // Parse and validate the final value
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || value.trim() === '') {
+      // If invalid, reset to current allocation
+      const asset = selectedAssets.find(a => a.symbol === symbol);
+      const currentAllocation = asset ? asset.allocation * 100 : 0;
+      updateAllocation(symbol, parseFloat(currentAllocation.toFixed(2)));
+    } else {
+      // Update with validated value, capped to 2 decimal places
+      const cappedValue = parseFloat(numValue.toFixed(2));
+      updateAllocation(symbol, cappedValue);
+    }
+  }, [selectedAssets, updateAllocation]);
+
+  // Adjust allocation with increment/decrement buttons
+  const adjustAllocation = useCallback((symbol: string, delta: number) => {
+    const currentAsset = selectedAssets.find(asset => asset.symbol === symbol);
+    if (currentAsset) {
+      const currentPercentage = currentAsset.allocation * 100;
+      const newPercentage = currentPercentage + delta;
+      updateAllocation(symbol, newPercentage);
+    }
+  }, [selectedAssets, updateAllocation]);
+
+  // Auto-rebalance remaining allocations
+  const rebalanceAllocations = useCallback(() => {
+    if (selectedAssets.length <= 1) return;
+    
+    const equalAllocation = 1 / selectedAssets.length;
+    const rebalanced = selectedAssets.map(asset => ({
+      ...asset,
+      allocation: equalAllocation
+    }));
+    setSelectedAssets(rebalanced);
+    
+    // Clear all input states since we've reset allocations
+    setAllocationInputs({});
+  }, [selectedAssets]);
 
   // Calculate DCA performance
   const calculateDCA = async () => {
@@ -185,23 +281,20 @@ export const InvestmentComparisonPage = () => {
 
   // Generate chart data for visualization
   const generateChartData = (data: any) => {
-    // Create normalized performance chart data
+    // Create chart data for individual assets only (All Assets view)
     const chartData = data.assets.map((asset: DCAResult) => ({
       name: asset.symbol,
       value: asset.finalValue,
       invested: asset.totalInvested,
       return: asset.profitLoss
     }));
-    
-    chartData.push({
-      name: 'S&P 500',
-      value: data.benchmark.finalValue,
-      invested: data.benchmark.totalInvested,
-      return: data.benchmark.profitLoss || (data.benchmark.finalValue - data.benchmark.totalInvested)
-    });
 
     setChartData(chartData);
     
+    // Calculate portfolio totals for timeline chart
+    const portfolioTotal = data.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0);
+    const portfolioInvested = data.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0);
+
     // Generate mock timeline data for the line chart
     // In a real implementation, this would come from the backend
     const mockTimeline: Record<string, any>[] = [];
@@ -213,7 +306,8 @@ export const InvestmentComparisonPage = () => {
       const currentDate = new Date(startDateObj.getTime() + (totalDays / 12) * i * 24 * 60 * 60 * 1000);
       const timelinePoint: Record<string, any> = {
         date: currentDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        benchmark: data.benchmark.totalInvested * (1 + (data.benchmark.totalReturn / 100) * (i / 12))
+        benchmark: data.benchmark.totalInvested * (1 + (data.benchmark.totalReturn / 100) * (i / 12)),
+        portfolio: portfolioInvested * (1 + (((portfolioTotal - portfolioInvested) / portfolioInvested) * 100 / 100) * (i / 12))
       };
       
       data.assets.forEach((asset: DCAResult) => {
@@ -230,6 +324,25 @@ export const InvestmentComparisonPage = () => {
   // Get portfolio total allocation
   const getTotalAllocation = () => {
     return selectedAssets.reduce((sum, asset) => sum + asset.allocation, 0) * 100;
+  };
+
+  // Format total allocation for display (no decimals for whole numbers, 1 decimal otherwise)
+  const formatTotalAllocation = (value: number) => {
+    return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
+  };
+
+  // Validation helper for allocation
+  const isValidAllocation = () => {
+    const total = getTotalAllocation();
+    return Math.abs(total - 100) <= 0.01; // Allow small rounding errors (2 decimal places)
+  };
+
+  // Get allocation status for UI feedback
+  const getAllocationStatus = () => {
+    const total = getTotalAllocation();
+    if (Math.abs(total - 100) <= 0.01) return 'valid';
+    if (total > 100) return 'over';
+    return 'under';
   };
 
   return (
@@ -263,11 +376,16 @@ export const InvestmentComparisonPage = () => {
                 className="form-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type to search: AAPL, BTC-USD, SPY, TSLA..."
-                style={{ paddingRight: '2.5rem' }}
+                placeholder={isMobile ? "Search: AAPL, BTC, SPY..." : "Type to search: AAPL, BTC-USD, SPY, TSLA..."}
+                style={{ 
+                  paddingRight: '2.5rem',
+                  fontSize: isMobile ? '16px' : '1rem', // Prevent zoom on iOS
+                  minHeight: isMobile ? '44px' : '3.125rem'
+                }}
                 autoComplete="off"
                 role="searchbox"
                 aria-label="Search for assets to compare"
+                inputMode="search"
               />
               <Search size={16} style={{ 
                 position: 'absolute', 
@@ -435,32 +553,72 @@ export const InvestmentComparisonPage = () => {
               border: '1px solid rgba(0, 211, 149, 0.2)',
               borderRadius: 'var(--radius-md)'
             }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '1rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span className="form-label" style={{ color: 'var(--accent-green)' }}>
-                    ✅ Selected Assets ({selectedAssets.length}/6)
-                  </span>
-                </div>
-                <span style={{ 
-                  fontSize: '0.875rem', 
-                  fontWeight: '600',
-                  color: getTotalAllocation() === 100 ? 'var(--accent-green)' : 'var(--accent-red)' 
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  marginBottom: '1rem',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  gap: isMobile ? '1rem' : '0'
                 }}>
-                  Total: {getTotalAllocation().toFixed(1)}%
-                  {getTotalAllocation() !== 100 && (
-                    <span style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}>
-                      (should be 100%)
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className="form-label" style={{ color: 'var(--accent-green)' }}>
+                      ✅ Selected Assets ({selectedAssets.length}/6)
                     </span>
-                  )}
-                </span>
-              </div>
-              
-              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  </div>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '1rem',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    width: isMobile ? '100%' : 'auto'
+                  }}>
+                    <span style={{ 
+                      fontSize: '0.875rem', 
+                      fontWeight: '600',
+                      color: getTotalAllocation() === 100 ? 'var(--accent-green)' : 
+                             Math.abs(getTotalAllocation() - 100) <= 0.1 ? 'var(--accent-green)' : 'var(--accent-red)',
+                      textAlign: isMobile ? 'center' : 'right'
+                    }}>
+                      Total: {formatTotalAllocation(getTotalAllocation())}%
+                      {Math.abs(getTotalAllocation() - 100) > 0.01 && (
+                        <span style={{ fontSize: '0.75rem', marginLeft: '0.5rem', display: 'block' }}>
+                          {getTotalAllocation() > 100 ? 'Over allocated!' : 'Should be 100%'}
+                        </span>
+                      )}
+                    </span>
+                    
+                    {selectedAssets.length > 1 && (
+                      <motion.button
+                        onClick={rebalanceAllocations}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        style={{
+                          padding: isMobile ? '0.75rem 1rem' : '0.5rem 0.75rem',
+                          background: 'var(--accent-blue)',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'white',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          minHeight: isMobile ? '44px' : 'auto',
+                          width: isMobile ? '100%' : 'auto',
+                          justifyContent: 'center'
+                        }}
+                        title="Set equal allocation for all assets"
+                      >
+                        🎯 Rebalance
+                      </motion.button>
+                    )}
+                  </div>
+                </div>              <div style={{ display: 'grid', gap: '0.75rem' }}>
                 {selectedAssets.map((asset) => (
                   <motion.div
                     key={asset.symbol}
@@ -468,78 +626,264 @@ export const InvestmentComparisonPage = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      padding: '0.75rem',
+                      flexDirection: isMobile ? 'column' : 'row',
+                      alignItems: isMobile ? 'stretch' : 'center',
+                      padding: isMobile ? '1rem' : '0.75rem',
                       backgroundColor: 'var(--bg-quaternary)',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-primary)',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      gap: isMobile ? '1rem' : '0.75rem'
                     }}
                   >
-                    <div style={{ flex: 1 }}>
+                    {/* Asset Info Section */}
+                    <div style={{ flex: isMobile ? 'none' : 1 }}>
                       <div style={{ 
                         fontWeight: '600', 
                         color: 'var(--text-primary)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem'
+                        gap: '0.5rem',
+                        marginBottom: isMobile ? '0.5rem' : '0'
                       }}>
                         {asset.symbol}
                         <div style={{
                           fontSize: '0.7rem',
                           padding: '0.15rem 0.4rem',
-                          backgroundColor: asset.quoteType === 'CRYPTOCURRENCY' ? 'rgba(255, 159, 67, 0.2)' : 
+                          backgroundColor: (asset.quoteType === 'CRYPTOCURRENCY' || asset.quoteType === 'Cryptocurrency') ? 'rgba(255, 159, 67, 0.2)' : 
                                           asset.quoteType === 'ETF' ? 'rgba(116, 185, 255, 0.2)' : 
                                           'rgba(0, 211, 149, 0.2)',
-                          color: asset.quoteType === 'CRYPTOCURRENCY' ? '#ff9f43' : 
+                          color: (asset.quoteType === 'CRYPTOCURRENCY' || asset.quoteType === 'Cryptocurrency') ? '#ff9f43' : 
                                  asset.quoteType === 'ETF' ? '#74b9ff' : 
                                  'var(--accent-green)',
                           borderRadius: 'var(--radius-sm)',
                           fontWeight: '600'
                         }}>
-                          {asset.quoteType === 'CRYPTOCURRENCY' ? 'CRYPTO' : 
+                          {(asset.quoteType === 'CRYPTOCURRENCY' || asset.quoteType === 'Cryptocurrency') ? 'CRYPTO' : 
                            asset.quoteType === 'ETF' ? 'ETF' : 
                            'STOCK'}
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: 'var(--text-muted)',
+                        lineHeight: isMobile ? '1.4' : '1.2'
+                      }}>
                         {asset.name}
                       </div>
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <input
-                        type="number"
-                        value={(asset.allocation * 100).toFixed(1)}
-                        onChange={(e) => updateAllocation(asset.symbol, parseFloat(e.target.value) || 0)}
-                        style={{
-                          width: '80px',
-                          padding: '0.5rem',
+                    {/* Mobile Allocation Controls */}
+                    {isMobile ? (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem'
+                      }}>
+                        {/* Mobile +/- Controls */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
                           background: 'var(--bg-tertiary)',
                           border: '1px solid var(--border-primary)',
                           borderRadius: 'var(--radius-sm)',
-                          color: 'var(--text-primary)',
-                          textAlign: 'center'
-                        }}
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                      <span style={{ color: 'var(--text-muted)', minWidth: '20px' }}>%</span>
-                      
-                      <button
-                        onClick={() => removeAsset(asset.symbol)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--accent-red)',
-                          cursor: 'pointer',
-                          padding: '0.25rem'
-                        }}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
+                          padding: '0.5rem'
+                        }}>
+                          <button
+                            onClick={() => adjustAllocation(asset.symbol, -5)}
+                            disabled={(asset.allocation * 100) <= 0}
+                            style={{
+                              background: 'var(--accent-red)',
+                              border: 'none',
+                              color: 'white',
+                              cursor: (asset.allocation * 100) <= 0 ? 'not-allowed' : 'pointer',
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '36px',
+                              minHeight: '36px',
+                              opacity: (asset.allocation * 100) <= 0 ? 0.5 : 1
+                            }}
+                            title="Decrease by 5%"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={getInputValue(asset.symbol)}
+                            onChange={(e) => handleAllocationChange(asset.symbol, e.target.value)}
+                            onBlur={(e) => handleAllocationBlur(asset.symbol, e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '0.75rem 0.5rem',
+                              background: 'var(--bg-secondary)',
+                              border: '1px solid var(--border-primary)',
+                              borderRadius: '4px',
+                              color: 'var(--text-primary)',
+                              textAlign: 'center',
+                              fontSize: '16px', // Prevent zoom on iOS
+                              fontWeight: '600'
+                            }}
+                            placeholder="0.0"
+                            aria-label={`Allocation percentage for ${asset.symbol}`}
+                          />
+                          
+                          <span style={{ 
+                            color: 'var(--text-primary)', 
+                            fontWeight: '600',
+                            fontSize: '0.875rem'
+                          }}>%</span>
+                          
+                          <button
+                            onClick={() => adjustAllocation(asset.symbol, 5)}
+                            disabled={(asset.allocation * 100) >= 100}
+                            style={{
+                              background: 'var(--accent-green)',
+                              border: 'none',
+                              color: 'white',
+                              cursor: (asset.allocation * 100) >= 100 ? 'not-allowed' : 'pointer',
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '36px',
+                              minHeight: '36px',
+                              opacity: (asset.allocation * 100) >= 100 ? 0.5 : 1
+                            }}
+                            title="Increase by 5%"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        
+                        {/* Remove Button */}
+                        <button
+                          onClick={() => removeAsset(asset.symbol)}
+                          style={{
+                            background: 'rgba(255, 107, 107, 0.1)',
+                            border: '1px solid rgba(255, 107, 107, 0.3)',
+                            color: 'var(--accent-red)',
+                            cursor: 'pointer',
+                            padding: '0.75rem',
+                            minHeight: '44px',
+                            minWidth: '44px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                          aria-label={`Remove ${asset.symbol} from comparison`}
+                          title={`Remove ${asset.symbol}`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Desktop Controls */
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {/* Desktop allocation control */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: 'var(--bg-tertiary)',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.25rem',
+                          minHeight: '36px'
+                        }}>
+                          <button
+                            onClick={() => adjustAllocation(asset.symbol, -1)}
+                            disabled={(asset.allocation * 100) <= 0}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: (asset.allocation * 100) <= 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                              cursor: (asset.allocation * 100) <= 0 ? 'not-allowed' : 'pointer',
+                              padding: '0.25rem',
+                              borderRadius: '3px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '24px',
+                              minHeight: '24px'
+                            }}
+                            title="Decrease allocation"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={getInputValue(asset.symbol)}
+                            onChange={(e) => handleAllocationChange(asset.symbol, e.target.value)}
+                            onBlur={(e) => handleAllocationBlur(asset.symbol, e.target.value)}
+                            style={{
+                              width: '60px',
+                              padding: '0.5rem',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-primary)',
+                              textAlign: 'center',
+                              fontSize: '0.875rem',
+                              outline: 'none'
+                            }}
+                            placeholder="0.0"
+                            aria-label={`Allocation percentage for ${asset.symbol}`}
+                          />
+                          
+                          <button
+                            onClick={() => adjustAllocation(asset.symbol, 1)}
+                            disabled={(asset.allocation * 100) >= 100}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: (asset.allocation * 100) >= 100 ? 'var(--text-muted)' : 'var(--text-primary)',
+                              cursor: (asset.allocation * 100) >= 100 ? 'not-allowed' : 'pointer',
+                              padding: '0.25rem',
+                              borderRadius: '3px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '24px',
+                              minHeight: '24px'
+                            }}
+                            title="Increase allocation"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                        
+                        <span style={{ color: 'var(--text-muted)', minWidth: '20px', fontSize: '1rem' }}>%</span>
+                        
+                        <button
+                          onClick={() => removeAsset(asset.symbol)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--accent-red)',
+                            cursor: 'pointer',
+                            padding: '0.25rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                          aria-label={`Remove ${asset.symbol} from comparison`}
+                          title={`Remove ${asset.symbol}`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -585,14 +929,19 @@ export const InvestmentComparisonPage = () => {
                                 asset.symbol.length === 3 ? 'ETF' : 'EQUITY'
                     })}
                     style={{
-                      padding: '0.5rem 0.75rem',
+                      padding: isMobile ? '0.75rem 1rem' : '0.5rem 0.75rem',
                       background: 'transparent',
                       border: '1px solid var(--border-primary)',
                       borderRadius: 'var(--radius-sm)',
                       color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
+                      fontSize: isMobile ? '1rem' : '0.875rem',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      minHeight: isMobile ? '44px' : 'auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      touchAction: 'manipulation'
                     }}
                   >
                     + {asset.symbol}
@@ -618,16 +967,27 @@ export const InvestmentComparisonPage = () => {
           </h3>
         </div>
         <div className="card-body">
-          <div className="investment-strategy-grid">
+          <div className="investment-strategy-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: isMobile ? '1.5rem' : '1rem'
+          }}>
             <div className="form-group">
               <label className="form-label">Initial Investment</label>
               <input
                 type="number"
+                inputMode="decimal"
                 className="form-input"
                 value={initialAmount}
                 onChange={(e) => setInitialAmount(e.target.value)}
-                placeholder="0"
+                placeholder="1000"
                 min="0"
+                step={isMobile ? "100" : "1"}
+                style={{
+                  fontSize: isMobile ? '16px' : '1rem', // Prevent zoom on iOS
+                  minHeight: isMobile ? '44px' : '3.125rem'
+                }}
+                aria-label="Initial investment amount in dollars"
               />
             </div>
 
@@ -635,11 +995,18 @@ export const InvestmentComparisonPage = () => {
               <label className="form-label">Regular Contribution</label>
               <input
                 type="number"
+                inputMode="decimal"
                 className="form-input"
                 value={contributionAmount}
                 onChange={(e) => setContributionAmount(e.target.value)}
                 placeholder="500"
                 min="0"
+                step={isMobile ? "50" : "1"}
+                style={{
+                  fontSize: isMobile ? '16px' : '1rem',
+                  minHeight: isMobile ? '44px' : '3.125rem'
+                }}
+                aria-label="Regular contribution amount in dollars"
               />
             </div>
 
@@ -649,6 +1016,11 @@ export const InvestmentComparisonPage = () => {
                 className="form-select"
                 value={contributionFrequency}
                 onChange={(e) => setContributionFrequency(e.target.value)}
+                style={{
+                  fontSize: isMobile ? '16px' : '1rem',
+                  minHeight: isMobile ? '44px' : '3.125rem'
+                }}
+                aria-label="Contribution frequency"
               >
                 <option value="weekly">Weekly</option>
                 <option value="biweekly">Bi-weekly</option>
@@ -659,22 +1031,100 @@ export const InvestmentComparisonPage = () => {
 
             <div className="form-group">
               <label className="form-label">Start Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{
+                    fontSize: isMobile ? '16px' : '1rem',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    flex: 1
+                  }}
+                  aria-label="Investment start date"
+                />
+                <button
+                  type="button"
+                  onClick={() => setStartDate(new Date().toISOString().split('T')[0])}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#00b383';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-green)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  style={{
+                    padding: isMobile ? '0.75rem' : '0.5rem 0.75rem',
+                    background: 'var(--accent-green)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'white',
+                    fontSize: isMobile ? '0.875rem' : '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Set start date to today"
+                >
+                  📅 Today
+                </button>
+              </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">End Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{
+                    fontSize: isMobile ? '16px' : '1rem',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    flex: 1
+                  }}
+                  aria-label="Investment end date"
+                />
+                <button
+                  type="button"
+                  onClick={() => setEndDate(new Date().toISOString().split('T')[0])}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-purple)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-blue)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  style={{
+                    padding: isMobile ? '0.75rem' : '0.5rem 0.75rem',
+                    background: 'var(--accent-blue)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'white',
+                    fontSize: isMobile ? '0.875rem' : '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Set end date to today"
+                >
+                  📅 Today
+                </button>
+              </div>
             </div>
           </div>
 
@@ -687,10 +1137,20 @@ export const InvestmentComparisonPage = () => {
             <motion.button
               className="btn-primary"
               onClick={calculateDCA}
-              disabled={isCalculating || selectedAssets.length === 0}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              style={{ width: '80%', maxWidth: '300px' }}
+              disabled={isCalculating || selectedAssets.length === 0 || !isValidAllocation()}
+              whileHover={{ scale: selectedAssets.length > 0 && isValidAllocation() ? 1.02 : 1 }}
+              whileTap={{ scale: selectedAssets.length > 0 && isValidAllocation() ? 0.98 : 1 }}
+              style={{ 
+                width: isMobile ? '100%' : '80%', 
+                maxWidth: isMobile ? 'none' : '300px',
+                opacity: selectedAssets.length === 0 || !isValidAllocation() ? 0.6 : 1,
+                minHeight: isMobile ? '48px' : '3.125rem'
+              }}
+              title={
+                selectedAssets.length === 0 ? 'Please select at least one asset' :
+                !isValidAllocation() ? `Total allocation is ${formatTotalAllocation(getTotalAllocation())}% - should be 100%` :
+                'Calculate investment performance'
+              }
             >
               {isCalculating ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -701,9 +1161,39 @@ export const InvestmentComparisonPage = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Calculator size={16} />
                   Calculate Performance
+                  {selectedAssets.length > 0 && !isValidAllocation() && (
+                    <span style={{ 
+                      fontSize: '0.75rem', 
+                      opacity: 0.8,
+                      marginLeft: '0.25rem'
+                    }}>
+                      (Fix allocation first)
+                    </span>
+                  )}
                 </div>
               )}
             </motion.button>
+            
+            {/* Validation feedback */}
+            {selectedAssets.length > 0 && !isValidAllocation() && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.75rem',
+                background: getAllocationStatus() === 'over' ? 'rgba(255, 107, 107, 0.1)' : 'rgba(255, 159, 67, 0.1)',
+                border: `1px solid ${getAllocationStatus() === 'over' ? 'rgba(255, 107, 107, 0.3)' : 'rgba(255, 159, 67, 0.3)'}`,
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.875rem',
+                color: getAllocationStatus() === 'over' ? 'var(--accent-red)' : '#ff9f43',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}>
+                ⚠️ Total allocation is {formatTotalAllocation(getTotalAllocation())}% - 
+                {getAllocationStatus() === 'over' ? ' reduce some allocations' : ' increase allocations to 100%'}
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -725,23 +1215,171 @@ export const InvestmentComparisonPage = () => {
               </h3>
               
               {/* Chart Type Selector */}
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   className={`chart-type-btn ${chartType === 'bar' ? 'active' : ''}`}
                   onClick={() => setChartType('bar')}
                 >
-                  📊 Comparison
+                  📊 All Assets
+                </button>
+                <button
+                  className={`chart-type-btn ${chartType === 'portfolio' ? 'active' : ''}`}
+                  onClick={() => setChartType('portfolio')}
+                >
+                  🎯 Portfolio vs S&P 500
                 </button>
                 <button
                   className={`chart-type-btn ${chartType === 'area' ? 'active' : ''}`}
                   onClick={() => setChartType('area')}
                 >
-                  📈 Performance
+                  📈 Performance Timeline
                 </button>
               </div>
             </div>
             <div className="card-body">
-              {chartType === 'bar' ? (
+              {chartType === 'portfolio' ? (
+                <>
+                  {/* Custom segmented portfolio vs benchmark chart */}
+                  <ResponsiveContainer width="100%" height={520}>
+                    <BarChart
+                      data={[
+                        {
+                          name: 'Portfolio',
+                          label: '🎯 Portfolio Total',
+                          type: 'portfolio',
+                          value: results.assets.reduce((s: number, a: DCAResult) => s + a.finalValue, 0),
+                          segments: results.assets.map((a: DCAResult, i: number) => ({
+                            symbol: a.symbol,
+                            value: a.finalValue,
+                            color: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][i % 6]
+                          }))
+                        },
+                        {
+                          name: 'S&P 500',
+                          label: '📍 S&P 500 Benchmark',
+                          type: 'benchmark',
+                          value: results.benchmark.finalValue,
+                          segments: [{ symbol: 'S&P 500', value: results.benchmark.finalValue, color: '#8b949e' }]
+                        }
+                      ]}
+                      margin={{ top: 20, right: 30, left: 30, bottom: 60 }}
+                      barCategoryGap="35%"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
+                      <XAxis dataKey="name" stroke="#8b949e" fontSize={12} tick={{ fill: '#8b949e' }} axisLine={{ stroke: '#30363d' }} tickLine={{ stroke: '#30363d' }} interval={0} />
+                      <YAxis stroke="#8b949e" fontSize={isMobile ? 10 : 12} tick={{ fill: '#8b949e' }} axisLine={{ stroke: '#30363d' }} tickLine={{ stroke: '#30363d' }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} width={isMobile ? 40 : 50} />
+                      <Tooltip
+                        content={(tooltipProps: any) => {
+                          const { active, payload } = tooltipProps;
+                          if (!active || !payload || !payload.length) return null;
+                          const dataPoint = payload[0].payload;
+                          const segs = dataPoint.segments || [];
+                          const totalVal = dataPoint.value || segs.reduce((s: number, sg: any) => s + (sg.value || 0), 0);
+                          return (
+                            <div style={{
+                              background: 'rgba(22,27,34,0.95)',
+                              border: '1px solid #30363d',
+                              borderRadius: 12,
+                              padding: '0.75rem 0.9rem',
+                              minWidth: '200px',
+                              fontSize: isMobile ? 12 : 13,
+                              boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                            }}>
+                              <div style={{ fontWeight: 600, color: '#58a6ff', marginBottom: '0.35rem' }}>{dataPoint.label}</div>
+                              <div style={{ fontWeight: 600, color: '#f0f6fc', marginBottom: '0.5rem' }}>
+                                Total: ${totalVal.toLocaleString()}
+                              </div>
+                              {dataPoint.type === 'portfolio' && segs.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                  {segs
+                                    .slice() // copy
+                                    .sort((a: any, b: any) => b.value - a.value)
+                                    .map((s: any) => {
+                                      const pct = totalVal ? (s.value / totalVal) * 100 : 0;
+                                      return (
+                                        <div key={s.symbol} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <span style={{ width: 10, height: 10, background: s.color, borderRadius: 2, display: 'inline-block' }} />
+                                            <span style={{ color: '#f0f6fc' }}>{s.symbol}</span>
+                                          </div>
+                                          <div style={{ fontSize: '0.7rem', color: '#8b949e', fontWeight: 600 }}>
+                                            {pct.toFixed(1)}%
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              )}
+                              {dataPoint.type === 'benchmark' && (
+                                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Benchmark final value</div>
+                              )}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar
+                        dataKey="value"
+                        radius={[4,4,0,0]}
+                        shape={(barProps: any) => {
+                          const { x, y, width, height, payload } = barProps;
+                          const segments = Array.isArray(payload?.segments) ? payload.segments : [];
+                          if (!segments.length) {
+                            // Fallback single bar
+                            return <rect x={x} y={y} width={width} height={height} fill={payload.type === 'benchmark' ? '#8b949e' : '#00d395'} rx={4} ry={4} />;
+                          }
+                          const total = segments.reduce((s: number, seg: any) => s + (seg.value || 0), 0) || 1;
+                          let offsetY = y + height; // start bottom
+                          const ordered = segments.slice().sort((a: any, b: any) => b.value - a.value); // largest at bottom
+                          const rects = ordered.map((seg: any, idx: number) => {
+                            const ratio = (seg.value || 0) / total;
+                            const segH = height * ratio;
+                            offsetY -= segH;
+                            const isTop = idx === ordered.length - 1;
+                            return (
+                              <rect
+                                key={seg.symbol}
+                                x={x}
+                                y={offsetY}
+                                width={width}
+                                height={segH}
+                                fill={seg.color}
+                                rx={isTop ? 4 : 0}
+                                ry={isTop ? 4 : 0}
+                              >
+                                <title>{`${seg.symbol}: $${seg.value.toLocaleString()}`}</title>
+                              </rect>
+                            );
+                          });
+                          return <g>{rects}</g>;
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  {/* Legend */}
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '1rem 1.5rem',
+                    justifyContent: 'center',
+                    marginTop: '1.25rem',
+                    fontSize: '0.8rem',
+                    lineHeight: 1.2,
+                    maxWidth: '900px',
+                    marginInline: 'auto'
+                  }}>
+                    {results.assets.map((a, i) => (
+                      <div key={a.symbol} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ width: 14, height: 10, background: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][i % 6], borderRadius: 2, display: 'inline-block' }} />
+                        <span style={{ color: 'var(--text-primary)' }}>{a.symbol}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ width: 14, height: 10, background: '#8b949e', borderRadius: 2, display: 'inline-block' }} />
+                      <span style={{ color: 'var(--text-primary)' }}>S&P 500</span>
+                    </div>
+                  </div>
+                </>
+              ) : chartType === 'bar' ? (
                 <ResponsiveContainer width="100%" height={500}>
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
@@ -840,23 +1478,33 @@ export const InvestmentComparisonPage = () => {
                       wrapperStyle={{ paddingTop: '20px' }}
                       iconType="line"
                     />
+                    <Line
+                      type="monotone"
+                      dataKey="portfolio"
+                      stroke="#00d395"
+                      strokeWidth={4}
+                      dot={{ fill: '#00d395', strokeWidth: 2, r: 5 }}
+                      activeDot={{ r: 7, stroke: '#00d395', strokeWidth: 3 }}
+                      name="🎯 Portfolio Total"
+                    />
                     {results.assets.map((asset, index) => (
                       <Line
                         key={asset.symbol}
                         type="monotone"
                         dataKey={asset.symbol}
-                        stroke={['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6]}
-                        strokeWidth={3}
-                        dot={{ fill: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6], strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, stroke: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6], strokeWidth: 2 }}
+                        stroke={['#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b', '#00b383'][index % 6]}
+                        strokeWidth={2}
+                        dot={{ fill: ['#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b', '#00b383'][index % 6], strokeWidth: 1, r: 3 }}
+                        activeDot={{ r: 5, stroke: ['#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b', '#00b383'][index % 6], strokeWidth: 2 }}
                         name={`📊 ${asset.symbol}`}
+                        opacity={0.7}
                       />
                     ))}
                     <Line
                       type="monotone"
                       dataKey="benchmark"
                       stroke="#8b949e"
-                      strokeWidth={2}
+                      strokeWidth={3}
                       strokeDasharray="5 5"
                       dot={false}
                       name="📍 S&P 500"
@@ -933,6 +1581,49 @@ export const InvestmentComparisonPage = () => {
                         </td>
                       </tr>
                     ))}
+                    
+                    {/* Portfolio Total Row */}
+                    <tr style={{ 
+                      borderBottom: '2px solid var(--accent-green)',
+                      backgroundColor: 'rgba(0, 211, 149, 0.1)',
+                      fontWeight: '600'
+                    }}>
+                      <td style={{ padding: '1rem' }}>
+                        <div>
+                          <div style={{ fontWeight: '700', color: 'var(--accent-green)', fontSize: '1.1rem' }}>
+                            🎯 Portfolio Total
+                          </div>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            Combined Performance
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
+                        100%
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
+                        ${results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
+                        ${results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0).toLocaleString()}
+                      </td>
+                      <td style={{ 
+                        padding: '1rem', 
+                        textAlign: 'right', 
+                        color: 'var(--accent-green)',
+                        fontWeight: '700'
+                      }}>
+                        +${(results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0) - results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0)).toLocaleString()}
+                      </td>
+                      <td style={{ 
+                        padding: '1rem', 
+                        textAlign: 'right',
+                        color: 'var(--accent-green)',
+                        fontWeight: '700'
+                      }}>
+                        {((results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0) - results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0)) / results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0) * 100 / (new Date(endDate).getFullYear() - new Date(startDate).getFullYear() || 1)).toFixed(1)}%
+                      </td>
+                    </tr>
                     
                     {/* Benchmark Row */}
                     <tr style={{ 
