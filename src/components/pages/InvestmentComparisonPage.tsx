@@ -157,13 +157,13 @@ export const InvestmentComparisonPage = () => {
       return allocationInputs[symbol];
     }
     const asset = selectedAssets.find(a => a.symbol === symbol);
-    return asset ? (asset.allocation * 100).toString() : '0';
+    return asset ? (asset.allocation * 100).toFixed(2) : '0.00';
   }, [allocationInputs, selectedAssets]);
 
   // Update asset allocation with validation
   const updateAllocation = useCallback((symbol: string, allocation: number) => {
-    // Clamp allocation between 0 and 100
-    const clampedAllocation = Math.min(Math.max(0, allocation), 100);
+    // Clamp allocation between 0 and 100 and round to 2 decimal places
+    const clampedAllocation = Math.min(Math.max(0, parseFloat(allocation.toFixed(2))), 100);
     
     const updated = selectedAssets.map(asset => 
       asset.symbol === symbol ? { ...asset, allocation: clampedAllocation / 100 } : asset
@@ -180,11 +180,25 @@ export const InvestmentComparisonPage = () => {
 
   // Handle direct input changes - store in temporary input state
   const handleAllocationChange = useCallback((symbol: string, value: string) => {
-    // Store the raw input value to preserve cursor position and allow natural editing
-    setAllocationInputs(prev => ({
-      ...prev,
-      [symbol]: value
-    }));
+    // Allow empty string for editing
+    if (value === '') {
+      setAllocationInputs(prev => ({
+        ...prev,
+        [symbol]: value
+      }));
+      return;
+    }
+    
+    // Validate input format - allow digits and one decimal point with up to 2 decimal places
+    const decimalRegex = /^\d*\.?\d{0,2}$/;
+    
+    if (decimalRegex.test(value)) {
+      setAllocationInputs(prev => ({
+        ...prev,
+        [symbol]: value
+      }));
+    }
+    // If invalid format, don't update the input state (effectively preventing the input)
   }, []);
 
   // Handle when input loses focus - validate and update actual allocation
@@ -195,10 +209,11 @@ export const InvestmentComparisonPage = () => {
       // If invalid, reset to current allocation
       const asset = selectedAssets.find(a => a.symbol === symbol);
       const currentAllocation = asset ? asset.allocation * 100 : 0;
-      updateAllocation(symbol, currentAllocation);
+      updateAllocation(symbol, parseFloat(currentAllocation.toFixed(2)));
     } else {
-      // Update with validated value
-      updateAllocation(symbol, numValue);
+      // Update with validated value, capped to 2 decimal places
+      const cappedValue = parseFloat(numValue.toFixed(2));
+      updateAllocation(symbol, cappedValue);
     }
   }, [selectedAssets, updateAllocation]);
 
@@ -313,16 +328,21 @@ export const InvestmentComparisonPage = () => {
     return selectedAssets.reduce((sum, asset) => sum + asset.allocation, 0) * 100;
   };
 
+  // Format total allocation for display (no decimals for whole numbers, 1 decimal otherwise)
+  const formatTotalAllocation = (value: number) => {
+    return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
+  };
+
   // Validation helper for allocation
   const isValidAllocation = () => {
     const total = getTotalAllocation();
-    return Math.abs(total - 100) <= 0.1; // Allow small rounding errors
+    return Math.abs(total - 100) <= 0.01; // Allow small rounding errors (2 decimal places)
   };
 
   // Get allocation status for UI feedback
   const getAllocationStatus = () => {
     const total = getTotalAllocation();
-    if (Math.abs(total - 100) <= 0.1) return 'valid';
+    if (Math.abs(total - 100) <= 0.01) return 'valid';
     if (total > 100) return 'over';
     return 'under';
   };
@@ -563,8 +583,8 @@ export const InvestmentComparisonPage = () => {
                              Math.abs(getTotalAllocation() - 100) <= 0.1 ? 'var(--accent-green)' : 'var(--accent-red)',
                       textAlign: isMobile ? 'center' : 'right'
                     }}>
-                      Total: {getTotalAllocation().toFixed(1)}%
-                      {Math.abs(getTotalAllocation() - 100) > 0.1 && (
+                      Total: {formatTotalAllocation(getTotalAllocation())}%
+                      {Math.abs(getTotalAllocation() - 100) > 0.01 && (
                         <span style={{ fontSize: '0.75rem', marginLeft: '0.5rem', display: 'block' }}>
                           {getTotalAllocation() > 100 ? 'Over allocated!' : 'Should be 100%'}
                         </span>
@@ -608,58 +628,179 @@ export const InvestmentComparisonPage = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      padding: '0.75rem',
+                      flexDirection: isMobile ? 'column' : 'row',
+                      alignItems: isMobile ? 'stretch' : 'center',
+                      padding: isMobile ? '1rem' : '0.75rem',
                       backgroundColor: 'var(--bg-quaternary)',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-primary)',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      gap: isMobile ? '1rem' : '0.75rem'
                     }}
                   >
-                    <div style={{ flex: 1 }}>
+                    {/* Asset Info Section */}
+                    <div style={{ flex: isMobile ? 'none' : 1 }}>
                       <div style={{ 
                         fontWeight: '600', 
                         color: 'var(--text-primary)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem'
+                        gap: '0.5rem',
+                        marginBottom: isMobile ? '0.5rem' : '0'
                       }}>
                         {asset.symbol}
                         <div style={{
                           fontSize: '0.7rem',
                           padding: '0.15rem 0.4rem',
-                          backgroundColor: asset.quoteType === 'CRYPTOCURRENCY' ? 'rgba(255, 159, 67, 0.2)' : 
+                          backgroundColor: (asset.quoteType === 'CRYPTOCURRENCY' || asset.quoteType === 'Cryptocurrency') ? 'rgba(255, 159, 67, 0.2)' : 
                                           asset.quoteType === 'ETF' ? 'rgba(116, 185, 255, 0.2)' : 
                                           'rgba(0, 211, 149, 0.2)',
-                          color: asset.quoteType === 'CRYPTOCURRENCY' ? '#ff9f43' : 
+                          color: (asset.quoteType === 'CRYPTOCURRENCY' || asset.quoteType === 'Cryptocurrency') ? '#ff9f43' : 
                                  asset.quoteType === 'ETF' ? '#74b9ff' : 
                                  'var(--accent-green)',
                           borderRadius: 'var(--radius-sm)',
                           fontWeight: '600'
                         }}>
-                          {asset.quoteType === 'CRYPTOCURRENCY' ? 'CRYPTO' : 
+                          {(asset.quoteType === 'CRYPTOCURRENCY' || asset.quoteType === 'Cryptocurrency') ? 'CRYPTO' : 
                            asset.quoteType === 'ETF' ? 'ETF' : 
                            'STOCK'}
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                      <div style={{ 
+                        fontSize: '0.875rem', 
+                        color: 'var(--text-muted)',
+                        lineHeight: isMobile ? '1.4' : '1.2'
+                      }}>
                         {asset.name}
                       </div>
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '0.75rem' }}>
-                      {/* Mobile-friendly allocation control */}
-                      <div style={{
-                        display: 'flex',
+                    {/* Mobile Allocation Controls */}
+                    {isMobile ? (
+                      <div style={{ 
+                        display: 'flex', 
                         alignItems: 'center',
-                        gap: '0.25rem',
-                        background: 'var(--bg-tertiary)',
-                        border: '1px solid var(--border-primary)',
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '0.25rem',
-                        minHeight: isMobile ? '44px' : '36px'
+                        justifyContent: 'space-between',
+                        gap: '1rem'
                       }}>
-                        {!isMobile && (
+                        {/* Mobile +/- Controls */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          background: 'var(--bg-tertiary)',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.5rem'
+                        }}>
+                          <button
+                            onClick={() => adjustAllocation(asset.symbol, -5)}
+                            disabled={(asset.allocation * 100) <= 0}
+                            style={{
+                              background: 'var(--accent-red)',
+                              border: 'none',
+                              color: 'white',
+                              cursor: (asset.allocation * 100) <= 0 ? 'not-allowed' : 'pointer',
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '36px',
+                              minHeight: '36px',
+                              opacity: (asset.allocation * 100) <= 0 ? 0.5 : 1
+                            }}
+                            title="Decrease by 5%"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={getInputValue(asset.symbol)}
+                            onChange={(e) => handleAllocationChange(asset.symbol, e.target.value)}
+                            onBlur={(e) => handleAllocationBlur(asset.symbol, e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '0.75rem 0.5rem',
+                              background: 'var(--bg-secondary)',
+                              border: '1px solid var(--border-primary)',
+                              borderRadius: '4px',
+                              color: 'var(--text-primary)',
+                              textAlign: 'center',
+                              fontSize: '16px', // Prevent zoom on iOS
+                              fontWeight: '600'
+                            }}
+                            placeholder="0.0"
+                            aria-label={`Allocation percentage for ${asset.symbol}`}
+                          />
+                          
+                          <span style={{ 
+                            color: 'var(--text-primary)', 
+                            fontWeight: '600',
+                            fontSize: '0.875rem'
+                          }}>%</span>
+                          
+                          <button
+                            onClick={() => adjustAllocation(asset.symbol, 5)}
+                            disabled={(asset.allocation * 100) >= 100}
+                            style={{
+                              background: 'var(--accent-green)',
+                              border: 'none',
+                              color: 'white',
+                              cursor: (asset.allocation * 100) >= 100 ? 'not-allowed' : 'pointer',
+                              padding: '0.5rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '36px',
+                              minHeight: '36px',
+                              opacity: (asset.allocation * 100) >= 100 ? 0.5 : 1
+                            }}
+                            title="Increase by 5%"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        
+                        {/* Remove Button */}
+                        <button
+                          onClick={() => removeAsset(asset.symbol)}
+                          style={{
+                            background: 'rgba(255, 107, 107, 0.1)',
+                            border: '1px solid rgba(255, 107, 107, 0.3)',
+                            color: 'var(--accent-red)',
+                            cursor: 'pointer',
+                            padding: '0.75rem',
+                            minHeight: '44px',
+                            minWidth: '44px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                          aria-label={`Remove ${asset.symbol} from comparison`}
+                          title={`Remove ${asset.symbol}`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Desktop Controls */
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {/* Desktop allocation control */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: 'var(--bg-tertiary)',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.25rem',
+                          minHeight: '36px'
+                        }}>
                           <button
                             onClick={() => adjustAllocation(asset.symbol, -1)}
                             disabled={(asset.allocation * 100) <= 0}
@@ -680,29 +821,27 @@ export const InvestmentComparisonPage = () => {
                           >
                             <Minus size={12} />
                           </button>
-                        )}
-                        
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={getInputValue(asset.symbol)}
-                          onChange={(e) => handleAllocationChange(asset.symbol, e.target.value)}
-                          onBlur={(e) => handleAllocationBlur(asset.symbol, e.target.value)}
-                          style={{
-                            width: isMobile ? '70px' : '60px',
-                            padding: isMobile ? '0.75rem 0.5rem' : '0.5rem',
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-primary)',
-                            textAlign: 'center',
-                            fontSize: isMobile ? '16px' : '0.875rem', // Prevent zoom on iOS
-                            outline: 'none'
-                          }}
-                          placeholder="0.0"
-                          aria-label={`Allocation percentage for ${asset.symbol}`}
-                        />
-                        
-                        {!isMobile && (
+                          
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={getInputValue(asset.symbol)}
+                            onChange={(e) => handleAllocationChange(asset.symbol, e.target.value)}
+                            onBlur={(e) => handleAllocationBlur(asset.symbol, e.target.value)}
+                            style={{
+                              width: '60px',
+                              padding: '0.5rem',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-primary)',
+                              textAlign: 'center',
+                              fontSize: '0.875rem',
+                              outline: 'none'
+                            }}
+                            placeholder="0.0"
+                            aria-label={`Allocation percentage for ${asset.symbol}`}
+                          />
+                          
                           <button
                             onClick={() => adjustAllocation(asset.symbol, 1)}
                             disabled={(asset.allocation * 100) >= 100}
@@ -723,32 +862,30 @@ export const InvestmentComparisonPage = () => {
                           >
                             <Plus size={12} />
                           </button>
-                        )}
+                        </div>
+                        
+                        <span style={{ color: 'var(--text-muted)', minWidth: '20px', fontSize: '1rem' }}>%</span>
+                        
+                        <button
+                          onClick={() => removeAsset(asset.symbol)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--accent-red)',
+                            cursor: 'pointer',
+                            padding: '0.25rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                          aria-label={`Remove ${asset.symbol} from comparison`}
+                          title={`Remove ${asset.symbol}`}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
-                      
-                      <span style={{ color: 'var(--text-muted)', minWidth: '20px', fontSize: isMobile ? '0.875rem' : '1rem' }}>%</span>
-                      
-                      <button
-                        onClick={() => removeAsset(asset.symbol)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--accent-red)',
-                          cursor: 'pointer',
-                          padding: isMobile ? '0.75rem' : '0.25rem',
-                          minHeight: isMobile ? '44px' : 'auto',
-                          minWidth: isMobile ? '44px' : 'auto',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 'var(--radius-sm)'
-                        }}
-                        aria-label={`Remove ${asset.symbol} from comparison`}
-                        title={`Remove ${asset.symbol}`}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -1013,7 +1150,7 @@ export const InvestmentComparisonPage = () => {
               }}
               title={
                 selectedAssets.length === 0 ? 'Please select at least one asset' :
-                !isValidAllocation() ? `Total allocation is ${getTotalAllocation().toFixed(1)}% - should be 100%` :
+                !isValidAllocation() ? `Total allocation is ${formatTotalAllocation(getTotalAllocation())}% - should be 100%` :
                 'Calculate investment performance'
               }
             >
@@ -1055,7 +1192,7 @@ export const InvestmentComparisonPage = () => {
                 justifyContent: 'center',
                 gap: '0.5rem'
               }}>
-                ⚠️ Total allocation is {getTotalAllocation().toFixed(1)}% - 
+                ⚠️ Total allocation is {formatTotalAllocation(getTotalAllocation())}% - 
                 {getAllocationStatus() === 'over' ? ' reduce some allocations' : ' increase allocations to 100%'}
               </div>
             )}
