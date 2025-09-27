@@ -25,6 +25,7 @@ import {
   Bar
 } from 'recharts';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useToast } from '../../components/toast/ToastContext';
 
 interface Asset {
   symbol: string;
@@ -50,6 +51,7 @@ interface DCAResult {
 
 export const InvestmentComparisonPage = () => {
   const isMobile = useIsMobile();
+  const { push } = useToast();
   
   // Asset Selection State
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
@@ -111,7 +113,11 @@ export const InvestmentComparisonPage = () => {
   // Add asset to comparison
   const addAsset = (asset: any) => {
     if (selectedAssets.length >= 6) {
-      alert('Maximum 6 assets allowed for comparison');
+      push({
+        variant: 'warning',
+        title: 'Limit Reached',
+        description: 'Maximum of 6 assets per comparison.'
+      });
       return;
     }
 
@@ -140,6 +146,13 @@ export const InvestmentComparisonPage = () => {
   // Remove asset
   const removeAsset = (symbol: string) => {
     const filtered = selectedAssets.filter(asset => asset.symbol !== symbol);
+    if (filtered.length === 0) {
+      push({
+        variant: 'info',
+        title: 'Assets Cleared',
+        description: 'All assets removed. Add some to begin again.'
+      });
+    }
     // Rebalance remaining assets
     const rebalanced = filtered.map(asset => ({
       ...asset,
@@ -245,7 +258,19 @@ export const InvestmentComparisonPage = () => {
   // Calculate DCA performance
   const calculateDCA = async () => {
     if (selectedAssets.length === 0) {
-      alert('Please select at least one asset to compare');
+      push({
+        variant: 'warning',
+        title: 'No Assets Selected',
+        description: 'Add at least one asset to calculate performance.'
+      });
+      return;
+    }
+    if (!isValidAllocation()) {
+      push({
+        variant: 'error',
+        title: 'Allocation Invalid',
+        description: `Total allocation must equal 100%. Currently ${formatTotalAllocation(getTotalAllocation())}%.`
+      });
       return;
     }
 
@@ -393,7 +418,7 @@ export const InvestmentComparisonPage = () => {
                 top: '50%', 
                 transform: 'translateY(-50%)',
                 color: 'var(--text-muted)'
-              }} />
+              }} aria-label="Search icon" />
             </div>
             
             {/* Instructions */}
@@ -709,6 +734,7 @@ export const InvestmentComparisonPage = () => {
                               opacity: (asset.allocation * 100) <= 0 ? 0.5 : 1
                             }}
                             title="Decrease by 5%"
+                            aria-label="Decrease allocation"
                           >
                             <Minus size={14} />
                           </button>
@@ -758,6 +784,7 @@ export const InvestmentComparisonPage = () => {
                               opacity: (asset.allocation * 100) >= 100 ? 0.5 : 1
                             }}
                             title="Increase by 5%"
+                            aria-label="Increase allocation"
                           >
                             <Plus size={14} />
                           </button>
@@ -816,6 +843,7 @@ export const InvestmentComparisonPage = () => {
                               minHeight: '24px'
                             }}
                             title="Decrease allocation"
+                            aria-label="Decrease allocation"
                           >
                             <Minus size={12} />
                           </button>
@@ -857,6 +885,7 @@ export const InvestmentComparisonPage = () => {
                               minHeight: '24px'
                             }}
                             title="Increase allocation"
+                            aria-label="Increase allocation"
                           >
                             <Plus size={12} />
                           </button>

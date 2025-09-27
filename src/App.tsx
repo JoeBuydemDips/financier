@@ -348,6 +348,18 @@ function App() {
       benchmarkValue: chartData.datasets[2]?.data[index] || 0,
     })) : [];
 
+  const loadExample = () => {
+    setTicker('AAPL');
+    setContribution('300');
+    setCadence('monthly');
+    setStartDate('2020-01-01');
+    setEndDate(new Date().toISOString().split('T')[0]);
+    // Run calculation after state updates (microtask defer)
+    setTimeout(() => {
+      calculateReturns();
+    }, 0);
+  };
+
   return (
     <div className="app">
       {/* Conditional Header - Mobile vs Desktop */}
@@ -652,7 +664,18 @@ function App() {
                             <p className="empty-state-description">
                               Your intelligent investment analysis platform. Enter a ticker symbol to get started with professional-grade financial analysis.
                             </p>
-                            
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={loadExample}
+                                className="btn-primary"
+                                style={{ fontWeight: 600 }}
+                                aria-label="Load example simulation"
+                              >
+                                ⚡ Load Example (AAPL 2020–Today)
+                              </motion.button>
+                            </div>
                             <div className="popular-tickers">
                               <h4>Popular Assets to Analyze:</h4>
                               <div className="ticker-buttons">
@@ -663,6 +686,7 @@ function App() {
                                     onClick={() => setTicker(symbol)}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
+                                    aria-label={`Set ticker to ${symbol}`}
                                   >
                                     {symbol}
                                   </motion.button>
