@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Target, PieChart, Activity } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../components/toast/ToastContext';
 import AssetSelectionCard from '../../components/comparison/AssetSelectionCard';
 import InvestmentStrategyCard from '../../components/comparison/InvestmentStrategyCard';
 import PerformanceChartsCard from '../../components/comparison/PerformanceChartsCard';
+import ResultsTableCard from '../../components/comparison/ResultsTableCard';
+import PortfolioSummaryCard from '../../components/comparison/PortfolioSummaryCard';
 import type { Asset, DCAResult } from '../../components/comparison/types';
 
 interface InvestmentComparisonPageProps {
@@ -407,219 +409,10 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
           />
 
           {/* Results Table */}
-          <motion.div 
-            className="glass-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="card-header">
-              <h3 className="card-title">
-                <Activity size={20} />
-                Detailed Results
-              </h3>
-            </div>
-            <div className="card-body">
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                      <th style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-secondary)' }}>Asset</th>
-                      <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>Allocation</th>
-                      <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>Invested</th>
-                      <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>Final Value</th>
-                      <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>Profit/Loss</th>
-                      <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>Annual Return</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.assets.map((asset) => (
-                      <tr key={asset.symbol} style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                        <td style={{ padding: '1rem' }}>
-                          <div>
-                            <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                              {asset.symbol}
-                            </div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                              {asset.name}
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                          {(asset.allocation * 100).toFixed(1)}%
-                        </td>
-                        <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                          ${asset.totalInvested.toLocaleString()}
-                        </td>
-                        <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                          ${asset.finalValue.toLocaleString()}
-                        </td>
-                        <td style={{ 
-                          padding: '1rem', 
-                          textAlign: 'right', 
-                          color: asset.profitLoss >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                          fontWeight: '600'
-                        }}>
-                          {asset.profitLoss >= 0 ? '+' : ''}${asset.profitLoss.toLocaleString()}
-                        </td>
-                        <td style={{ 
-                          padding: '1rem', 
-                          textAlign: 'right',
-                          color: asset.annualizedReturn >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                          fontWeight: '600'
-                        }}>
-                          {asset.annualizedReturn.toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    {/* Portfolio Total Row */}
-                    <tr style={{ 
-                      borderBottom: '2px solid var(--accent-green)',
-                      backgroundColor: 'rgba(0, 211, 149, 0.1)',
-                      fontWeight: '600'
-                    }}>
-                      <td style={{ padding: '1rem' }}>
-                        <div>
-                          <div style={{ fontWeight: '700', color: 'var(--accent-green)', fontSize: '1.1rem' }}>
-                            🎯 Portfolio Total
-                          </div>
-                          <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            Combined Performance
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
-                        100%
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
-                        ${results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0).toLocaleString()}
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
-                        ${results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0).toLocaleString()}
-                      </td>
-                      <td style={{ 
-                        padding: '1rem', 
-                        textAlign: 'right', 
-                        color: 'var(--accent-green)',
-                        fontWeight: '700'
-                      }}>
-                        +${(results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0) - results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0)).toLocaleString()}
-                      </td>
-                      <td style={{ 
-                        padding: '1rem', 
-                        textAlign: 'right',
-                        color: 'var(--accent-green)',
-                        fontWeight: '700'
-                      }}>
-                        {((results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0) - results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0)) / results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0) * 100 / (new Date(endDate).getFullYear() - new Date(startDate).getFullYear() || 1)).toFixed(1)}%
-                      </td>
-                    </tr>
-                    
-                    {/* Benchmark Row */}
-                    <tr style={{ 
-                      borderBottom: '1px solid var(--border-primary)',
-                      backgroundColor: 'var(--bg-quaternary)'
-                    }}>
-                      <td style={{ padding: '1rem' }}>
-                        <div>
-                          <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                            SPY (Benchmark)
-                          </div>
-                          <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            S&P 500 ETF
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                        100%
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                        ${results.benchmark.totalInvested.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                        ${results.benchmark.finalValue.toLocaleString()}
-                      </td>
-                      <td style={{ 
-                        padding: '1rem', 
-                        textAlign: 'right', 
-                        color: results.benchmark.profitLoss >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                        fontWeight: '600'
-                      }}>
-                        {results.benchmark.profitLoss >= 0 ? '+' : ''}${results.benchmark.profitLoss.toLocaleString()}
-                      </td>
-                      <td style={{ 
-                        padding: '1rem', 
-                        textAlign: 'right',
-                        color: results.benchmark.annualizedReturn >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                        fontWeight: '600'
-                      }}>
-                        {results.benchmark.annualizedReturn.toFixed(1)}%
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
+          <ResultsTableCard results={results} startDate={startDate} endDate={endDate} />
 
           {/* Portfolio Summary */}
-          <motion.div 
-            className="glass-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <div className="card-header">
-              <h3 className="card-title">
-                <PieChart size={20} />
-                Portfolio Summary
-              </h3>
-            </div>
-            <div className="card-body">
-              <div className="investment-strategy-grid">
-                <motion.div 
-                  className="metric-card"
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <div className="metric-label">Total Invested</div>
-                  <div className="metric-value">
-                    ${results.portfolio.totalInvested.toLocaleString()}
-                  </div>
-                </motion.div>
-
-                <motion.div 
-                  className="metric-card"
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <div className="metric-label">Portfolio Value</div>
-                  <div className="metric-value">
-                    ${results.portfolio.finalValue.toLocaleString()}
-                  </div>
-                </motion.div>
-
-                <motion.div 
-                  className="metric-card"
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <div className="metric-label">Total Profit/Loss</div>
-                  <div className={`metric-value ${results.portfolio.profitLoss >= 0 ? 'positive' : 'negative'}`}>
-                    {results.portfolio.profitLoss >= 0 ? '+' : ''}${results.portfolio.profitLoss.toLocaleString()}
-                  </div>
-                </motion.div>
-
-                <motion.div 
-                  className="metric-card"
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <div className="metric-label">Total Return</div>
-                  <div className={`metric-value ${results.portfolio.totalReturn >= 0 ? 'positive' : 'negative'}`}>
-                    {results.portfolio.totalReturn.toFixed(1)}%
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-          </motion.div>
+          <PortfolioSummaryCard portfolio={results.portfolio} />
         </>
       )}
 
