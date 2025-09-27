@@ -1,5 +1,7 @@
 # 📈 Financier
 
+![CI](https://github.com/JoeBuydemDips/financier/actions/workflows/ci.yml/badge.svg)
+
 > Investment Analysis Platform
 
 Financier is an investment analysis platform designed to help anyone regardless of experience see what they could have achieved by investing, and to demystify the process of building wealth. Built with Netlify Functions for scalable, serverless backend operations and powered by real-time stock data, historical performance validation, and clear risk analytics, Financier empowers users to discover that investing doesn't have to be complicated or intimidating. Whether you're curious about "what if I had invested in Apple five years ago?" or want to compare strategies, Financier makes it easy to learn from the past and make confident decisions for the future.
@@ -270,6 +272,20 @@ npm run test          # run test suite once
 npm run test:watch    # watch mode
 npm run test:coverage # generate coverage report (text + lcov)
 ```
+
+Current coverage focus: core allocation utilities (`src/utils/allocation.ts`) ensuring correctness before advanced performance refactors. Add new tests under `src/**/*.test.ts(x)`.
+
+#### Required Status Checks
+
+The GitHub Actions workflow (`ci.yml`) runs automatically on every push and pull request targeting `main`. To enforce passing tests before merges:
+
+1. In your GitHub repository go to Settings > Branches.
+2. Add a branch protection rule for `main`.
+3. Enable "Require status checks to pass before merging".
+4. Select the "CI" workflow (it will appear after it runs at least once).
+5. (Optional) Enable "Require branches to be up to date" to force re-run after rebases.
+
+This ensures no Pull Request can merge unless the Vitest suite succeeds.
 
 Current coverage focus: core allocation utilities (`src/utils/allocation.ts`) ensuring correctness before advanced performance refactors. Add new tests under `src/**/*.test.ts(x)`.
 
