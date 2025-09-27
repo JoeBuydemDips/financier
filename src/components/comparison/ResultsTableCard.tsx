@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import React from 'react';
-import type { DCAResult } from './types';
+import type { DCAResult, PortfolioResult } from './types';
 
 interface ResultsTableCardProps {
   results: {
     assets: DCAResult[];
     benchmark: DCAResult;
-    portfolio: any;
+    portfolio: PortfolioResult;
   };
   startDate: string;
   endDate: string;

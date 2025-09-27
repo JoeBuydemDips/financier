@@ -1,14 +1,10 @@
 import { motion } from 'framer-motion';
 import { PieChart } from 'lucide-react';
 import React from 'react';
+import type { PortfolioResult } from './types';
 
 interface PortfolioSummaryCardProps {
-  portfolio: {
-    totalInvested: number;
-    finalValue: number;
-    profitLoss: number;
-    totalReturn: number;
-  };
+  portfolio: PortfolioResult;
 }
 
 const PortfolioSummaryCard: React.FC<PortfolioSummaryCardProps> = ({ portfolio }) => {

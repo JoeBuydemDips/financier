@@ -8,7 +8,8 @@ import InvestmentStrategyCard from '../../components/comparison/InvestmentStrate
 import PerformanceChartsCard from '../../components/comparison/PerformanceChartsCard';
 import ResultsTableCard from '../../components/comparison/ResultsTableCard';
 import PortfolioSummaryCard from '../../components/comparison/PortfolioSummaryCard';
-import type { Asset, DCAResult } from '../../components/comparison/types';
+import type { Asset, DCAResult, DCAResponse } from '../../components/comparison/types';
+import { updateAssetAllocation, rebalanceEqual, adjustAllocation as utilAdjust, totalAllocation, isValidTotal, formatPercent, allocationStatus as deriveStatus } from '../../utils/allocation';
 
 interface InvestmentComparisonPageProps {
   initialAssets?: Asset[];
@@ -25,12 +26,7 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
   const [contributionFrequency, setContributionFrequency] = useState('monthly');
   const [startDate, setStartDate] = useState('2021-01-01');
   const [endDate, setEndDate] = useState('2024-01-01');
-  const [results, setResults] = useState<{
-    assets: DCAResult[];
-    benchmark: DCAResult;
-    portfolio: any;
-    timeline?: any[];
-  } | null>(null);
+  const [results, setResults] = useState<DCAResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [chartData, setChartData] = useState([]);
   const [chartType, setChartType] = useState<'bar' | 'area' | 'portfolio'>('bar');
@@ -126,22 +122,10 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
 
   // Update asset allocation with validation
   const updateAllocation = useCallback((symbol: string, allocation: number) => {
-    if (autoBalanceEnabled) return; // Ignore manual edits in auto mode
-    // Clamp allocation between 0 and 100 and round to 2 decimal places
-    const clampedAllocation = Math.min(Math.max(0, parseFloat(allocation.toFixed(2))), 100);
-    
-    const updated = selectedAssets.map(asset => 
-      asset.symbol === symbol ? { ...asset, allocation: clampedAllocation / 100 } : asset
-    );
-    setSelectedAssets(updated);
-    
-    // Clear the input state for this symbol since we've updated the actual value
-    setAllocationInputs(prev => {
-      const next = { ...prev };
-      delete next[symbol];
-      return next;
-    });
-  }, [selectedAssets, autoBalanceEnabled]);
+    if (autoBalanceEnabled) return;
+    setSelectedAssets(prev => updateAssetAllocation(prev, symbol, allocation));
+    setAllocationInputs(prev => { const next = { ...prev }; delete next[symbol]; return next; });
+  }, [autoBalanceEnabled]);
 
   // Handle direct input changes - store in temporary input state
   const handleAllocationChange = useCallback((symbol: string, value: string) => {
@@ -187,33 +171,19 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
   // Adjust allocation with increment/decrement buttons
   const adjustAllocation = useCallback((symbol: string, delta: number) => {
     if (autoBalanceEnabled) return;
-    const currentAsset = selectedAssets.find(asset => asset.symbol === symbol);
-    if (currentAsset) {
-      const currentPercentage = currentAsset.allocation * 100;
-      const newPercentage = currentPercentage + delta;
-      updateAllocation(symbol, newPercentage);
-    }
-  }, [selectedAssets, updateAllocation, autoBalanceEnabled]);
+    setSelectedAssets(prev => utilAdjust(prev, symbol, delta));
+  }, [autoBalanceEnabled]);
 
   // Auto-rebalance remaining allocations
   const rebalanceAllocations = useCallback(() => {
-    if (selectedAssets.length <= 1) return;
-    
-    const equalAllocation = 1 / selectedAssets.length;
-    const rebalanced = selectedAssets.map(asset => ({
-      ...asset,
-      allocation: equalAllocation
-    }));
-    setSelectedAssets(rebalanced);
-    
-    // Clear all input states since we've reset allocations
+    setSelectedAssets(prev => prev.length <= 1 ? prev : rebalanceEqual(prev));
     setAllocationInputs({});
-  }, [selectedAssets]);
+  }, []);
 
   // Enforce equal weighting whenever auto-balance is enabled or asset count changes
   useEffect(() => {
     if (autoBalanceEnabled && selectedAssets.length > 0) {
-      setSelectedAssets(prev => prev.map(a => ({ ...a, allocation: 1 / prev.length })));
+      setSelectedAssets(prev => rebalanceEqual(prev));
       setAllocationInputs({});
     }
   }, [autoBalanceEnabled, selectedAssets.length]);
@@ -269,7 +239,7 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data: DCAResponse = await response.json();
         setResults(data);
         generateChartData(data);
       } else {
@@ -297,28 +267,16 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
   };
 
   // Get portfolio total allocation
-  const getTotalAllocation = () => {
-    return selectedAssets.reduce((sum, asset) => sum + asset.allocation, 0) * 100;
-  };
+  const getTotalAllocation = () => totalAllocation(selectedAssets);
 
   // Format total allocation for display (no decimals for whole numbers, 1 decimal otherwise)
-  const formatTotalAllocation = (value: number) => {
-    return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
-  };
+  const formatTotalAllocation = (value: number) => formatPercent(value);
 
   // Validation helper for allocation
-  const isValidAllocation = () => {
-    const total = getTotalAllocation();
-    return Math.abs(total - 100) <= 0.01; // Allow small rounding errors (2 decimal places)
-  };
+  const isValidAllocation = () => isValidTotal(selectedAssets);
 
   // Allocation status (used by strategy card warnings)
-  const allocationStatus: 'valid' | 'over' | 'under' = (() => {
-    const total = getTotalAllocation();
-    if (Math.abs(total - 100) <= 0.01) return 'valid';
-    if (total > 100) return 'over';
-    return 'under';
-  })();
+  const allocationStatus: 'valid' | 'over' | 'under' = deriveStatus(selectedAssets);
 
   return (
     <motion.div 
