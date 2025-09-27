@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import { Target } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../components/toast/ToastContext';
 import AssetSelectionCard from '../../components/comparison/AssetSelectionCard';
 import InvestmentStrategyCard from '../../components/comparison/InvestmentStrategyCard';
-import PerformanceChartsCard from '../../components/comparison/PerformanceChartsCard';
-import ResultsTableCard from '../../components/comparison/ResultsTableCard';
-import PortfolioSummaryCard from '../../components/comparison/PortfolioSummaryCard';
+// Lazy loaded heavy visualization / results components
+const PerformanceChartsCard = lazy(() => import('../../components/comparison/PerformanceChartsCard'));
+const ResultsTableCard = lazy(() => import('../../components/comparison/ResultsTableCard'));
+const PortfolioSummaryCard = lazy(() => import('../../components/comparison/PortfolioSummaryCard'));
 import type { Asset, DCAResult, DCAResponse } from '../../components/comparison/types';
 import { updateAssetAllocation, rebalanceEqual, adjustAllocation as utilAdjust, totalAllocation, isValidTotal, formatPercent, allocationStatus as deriveStatus } from '../../utils/allocation';
 
@@ -28,7 +29,8 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
   const [endDate, setEndDate] = useState('2024-01-01');
   const [results, setResults] = useState<DCAResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [chartData, setChartData] = useState([]);
+  const [lastDurationMs, setLastDurationMs] = useState<number | null>(null);
+  const [chartDataRaw, setChartDataRaw] = useState<any[]>([]);
   const [chartType, setChartType] = useState<'bar' | 'area' | 'portfolio'>('bar');
   const { push } = useToast();
   // Auto-balance state: when enabled, allocations are kept equal & manual edits disabled
@@ -224,6 +226,7 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
     }
 
     setIsCalculating(true);
+    const t0 = performance.now();
     try {
               const response = await fetch('/.netlify/functions/calculate-dca', {
         method: 'POST',
@@ -242,6 +245,8 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
         const data: DCAResponse = await response.json();
         setResults(data);
         generateChartData(data);
+        const elapsed = performance.now() - t0;
+        setLastDurationMs(elapsed);
       } else {
         throw new Error('Failed to calculate DCA performance');
       }
@@ -262,12 +267,13 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
       invested: asset.totalInvested,
       return: asset.profitLoss
     }));
-    setChartData(transformed);
+  setChartDataRaw(transformed);
     // Timeline now fully provided by backend (data.timeline). No mock generation here.
   };
 
   // Get portfolio total allocation
-  const getTotalAllocation = () => totalAllocation(selectedAssets);
+  const totalAllocationValue = useMemo(() => totalAllocation(selectedAssets), [selectedAssets]);
+  const getTotalAllocation = () => totalAllocationValue;
 
   // Format total allocation for display (no decimals for whole numbers, 1 decimal otherwise)
   const formatTotalAllocation = (value: number) => formatPercent(value);
@@ -276,7 +282,9 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
   const isValidAllocation = () => isValidTotal(selectedAssets);
 
   // Allocation status (used by strategy card warnings)
-  const allocationStatus: 'valid' | 'over' | 'under' = deriveStatus(selectedAssets);
+  const allocationStatus: 'valid' | 'over' | 'under' = useMemo(() => deriveStatus(selectedAssets), [selectedAssets]);
+
+  const chartData = useMemo(() => chartDataRaw, [chartDataRaw]);
 
   return (
     <motion.div 
@@ -324,26 +332,28 @@ export const InvestmentComparisonPage = ({ initialAssets }: InvestmentComparison
         allocationStatus={allocationStatus}
         totalAllocationFormatted={formatTotalAllocation(getTotalAllocation())}
       />
+      {lastDurationMs !== null && (
+        <div style={{ fontSize: '0.75rem', opacity: 0.6, textAlign: 'right', marginTop: '-0.75rem', marginBottom: '0.5rem' }}>
+          Last calculation: {lastDurationMs.toFixed(0)} ms
+        </div>
+      )}
 
       {/* Results */}
-      {results && (
-        <>
-          {/* Enhanced Performance Visualization */}
-          <PerformanceChartsCard
-            isMobile={isMobile}
-            results={results}
-            chartType={chartType}
-            setChartType={setChartType}
-            chartData={chartData}
-          />
-
-          {/* Results Table */}
-          <ResultsTableCard results={results} startDate={startDate} endDate={endDate} />
-
-          {/* Portfolio Summary */}
-          <PortfolioSummaryCard portfolio={results.portfolio} />
-        </>
-      )}
+      {results ? (
+        <Suspense fallback={<div style={{ padding: '1rem', opacity: 0.7 }}>Loading results...</div>}>
+          <>
+            <PerformanceChartsCard
+              isMobile={isMobile}
+              results={results}
+              chartType={chartType}
+              setChartType={setChartType}
+              chartData={chartData}
+            />
+            <ResultsTableCard results={results} startDate={startDate} endDate={endDate} />
+            <PortfolioSummaryCard portfolio={results.portfolio} />
+          </>
+        </Suspense>
+      ) : null}
 
       {/* Getting Started */}
       {!results && selectedAssets.length === 0 && (

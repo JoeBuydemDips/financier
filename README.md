@@ -259,6 +259,40 @@ When running locally with `netlify dev`, the following API endpoints are availab
 - `GET /.netlify/functions/search/{query}` - Search for stocks
 - `POST /.netlify/functions/calculate-dca` - Calculate DCA performance
 
+### 🧪 Testing
+
+Vitest + Testing Library power the unit and (soon) component tests.
+
+Scripts:
+
+```bash
+npm run test          # run test suite once
+npm run test:watch    # watch mode
+npm run test:coverage # generate coverage report (text + lcov)
+```
+
+Current coverage focus: core allocation utilities (`src/utils/allocation.ts`) ensuring correctness before advanced performance refactors. Add new tests under `src/**/*.test.ts(x)`.
+
+### ⚡ Performance Optimizations Implemented
+
+- Code splitting with `React.lazy` + `Suspense` for heavy comparison result components (charts, table, summary)
+- Vendor chunk separation via Vite `manualChunks` (react, charts, framer-motion) for better browser caching
+- Memoization (`useMemo`) of derived allocation totals & chart data to cut unnecessary renders
+- Extraction of pure allocation helpers for fast unit tests and easier profiling
+- Server-provided performance timeline eliminates client mock generation work
+- Lightweight loading fallbacks to avoid layout shift during dynamic import
+
+Planned (not yet implemented):
+
+- Finer-grained memoization in chart subcomponents
+- Timeline fidelity upgrade (quote-driven rather than interpolated smoothing)
+- Accessibility pass for chart summaries / legends
+- Lightweight client performance metrics panel (LCP & fetch timing aggregation)
+
+### ⏱️ Instrumentation
+
+The investment comparison page records the last DCA calculation duration (ms) post-fetch for quick feedback on backend performance.
+
 ## 📄 License
 
 This project is licensed under the MIT License.
