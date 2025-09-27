@@ -22,8 +22,7 @@ import {
   Tooltip,
   Legend,
   BarChart,
-  Bar,
-  Cell
+  Bar
 } from 'recharts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
@@ -1240,88 +1239,145 @@ export const InvestmentComparisonPage = () => {
             <div className="card-body">
               {chartType === 'portfolio' ? (
                 <>
-                <ResponsiveContainer width="100%" height={500}>
-                  <BarChart
-                    data={[
-                      {
-                        name: 'Portfolio',
-                        label: '🎯 Portfolio Total',
-                        type: 'portfolio',
-                        value: results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0)
-                      },
-                      {
-                        name: 'S&P 500',
-                        label: '📍 S&P 500 Benchmark',
-                        type: 'benchmark',
-                        value: results.benchmark.finalValue
-                      }
-                    ]}
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 30,
-                      bottom: 60
-                    }}
-                    barCategoryGap="35%" /* widen gap so single bar visually centers */
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#8b949e"
-                      fontSize={12}
-                      tick={{ fill: '#8b949e' }}
-                      axisLine={{ stroke: '#30363d' }}
-                      tickLine={{ stroke: '#30363d' }}
-                      interval={0}
-                    />
-                    <YAxis
-                      stroke="#8b949e"
-                      fontSize={isMobile ? 10 : 12}
-                      tick={{ fill: '#8b949e' }}
-                      axisLine={{ stroke: '#30363d' }}
-                      tickLine={{ stroke: '#30363d' }}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                      width={isMobile ? 40 : 50}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(22, 27, 34, 0.95)',
-                        border: '1px solid #30363d',
-                        borderRadius: '12px',
-                        color: '#f0f6fc',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-                        backdropFilter: 'blur(12px)',
-                        fontSize: isMobile ? '12px' : '14px'
-                      }}
-                      formatter={(val: any, _name: string, props: any) => [
-                        `$${Number(val).toLocaleString()}`,
-                        props.payload.label
+                  {/* Custom segmented portfolio vs benchmark chart */}
+                  <ResponsiveContainer width="100%" height={520}>
+                    <BarChart
+                      data={[
+                        {
+                          name: 'Portfolio',
+                          label: '🎯 Portfolio Total',
+                          type: 'portfolio',
+                          value: results.assets.reduce((s: number, a: DCAResult) => s + a.finalValue, 0),
+                          segments: results.assets.map((a: DCAResult, i: number) => ({
+                            symbol: a.symbol,
+                            value: a.finalValue,
+                            color: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][i % 6]
+                          }))
+                        },
+                        {
+                          name: 'S&P 500',
+                          label: '📍 S&P 500 Benchmark',
+                          type: 'benchmark',
+                          value: results.benchmark.finalValue,
+                          segments: [{ symbol: 'S&P 500', value: results.benchmark.finalValue, color: '#8b949e' }]
+                        }
                       ]}
-                      labelStyle={{ color: '#58a6ff', fontWeight: '600' }}
-                    />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {/* Ensure single bar per category (centers automatically) */}
-                      <Cell key="portfolio" fill="#00d395" />
-                      <Cell key="benchmark" fill="#8b949e" />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div style={{
-                  display: 'flex',
-                  gap: '2rem',
-                  justifyContent: 'center',
-                  marginTop: '1.25rem',
-                  fontSize: '0.9rem'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '16px', height: '12px', background: '#00d395', borderRadius: '2px', display: 'inline-block' }} />
-                    <span style={{ color: 'var(--text-primary)' }}>🎯 Portfolio Total</span>
+                      margin={{ top: 20, right: 30, left: 30, bottom: 60 }}
+                      barCategoryGap="35%"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
+                      <XAxis dataKey="name" stroke="#8b949e" fontSize={12} tick={{ fill: '#8b949e' }} axisLine={{ stroke: '#30363d' }} tickLine={{ stroke: '#30363d' }} interval={0} />
+                      <YAxis stroke="#8b949e" fontSize={isMobile ? 10 : 12} tick={{ fill: '#8b949e' }} axisLine={{ stroke: '#30363d' }} tickLine={{ stroke: '#30363d' }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} width={isMobile ? 40 : 50} />
+                      <Tooltip
+                        content={(tooltipProps: any) => {
+                          const { active, payload } = tooltipProps;
+                          if (!active || !payload || !payload.length) return null;
+                          const dataPoint = payload[0].payload;
+                          const segs = dataPoint.segments || [];
+                          const totalVal = dataPoint.value || segs.reduce((s: number, sg: any) => s + (sg.value || 0), 0);
+                          return (
+                            <div style={{
+                              background: 'rgba(22,27,34,0.95)',
+                              border: '1px solid #30363d',
+                              borderRadius: 12,
+                              padding: '0.75rem 0.9rem',
+                              minWidth: '200px',
+                              fontSize: isMobile ? 12 : 13,
+                              boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                            }}>
+                              <div style={{ fontWeight: 600, color: '#58a6ff', marginBottom: '0.35rem' }}>{dataPoint.label}</div>
+                              <div style={{ fontWeight: 600, color: '#f0f6fc', marginBottom: '0.5rem' }}>
+                                Total: ${totalVal.toLocaleString()}
+                              </div>
+                              {dataPoint.type === 'portfolio' && segs.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                  {segs
+                                    .slice() // copy
+                                    .sort((a: any, b: any) => b.value - a.value)
+                                    .map((s: any) => {
+                                      const pct = totalVal ? (s.value / totalVal) * 100 : 0;
+                                      return (
+                                        <div key={s.symbol} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <span style={{ width: 10, height: 10, background: s.color, borderRadius: 2, display: 'inline-block' }} />
+                                            <span style={{ color: '#f0f6fc' }}>{s.symbol}</span>
+                                          </div>
+                                          <div style={{ fontSize: '0.7rem', color: '#8b949e', fontWeight: 600 }}>
+                                            {pct.toFixed(1)}%
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              )}
+                              {dataPoint.type === 'benchmark' && (
+                                <div style={{ color: '#8b949e', fontSize: '0.75rem' }}>Benchmark final value</div>
+                              )}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar
+                        dataKey="value"
+                        radius={[4,4,0,0]}
+                        shape={(barProps: any) => {
+                          const { x, y, width, height, payload } = barProps;
+                          const segments = Array.isArray(payload?.segments) ? payload.segments : [];
+                          if (!segments.length) {
+                            // Fallback single bar
+                            return <rect x={x} y={y} width={width} height={height} fill={payload.type === 'benchmark' ? '#8b949e' : '#00d395'} rx={4} ry={4} />;
+                          }
+                          const total = segments.reduce((s: number, seg: any) => s + (seg.value || 0), 0) || 1;
+                          let offsetY = y + height; // start bottom
+                          const ordered = segments.slice().sort((a: any, b: any) => b.value - a.value); // largest at bottom
+                          const rects = ordered.map((seg: any, idx: number) => {
+                            const ratio = (seg.value || 0) / total;
+                            const segH = height * ratio;
+                            offsetY -= segH;
+                            const isTop = idx === ordered.length - 1;
+                            return (
+                              <rect
+                                key={seg.symbol}
+                                x={x}
+                                y={offsetY}
+                                width={width}
+                                height={segH}
+                                fill={seg.color}
+                                rx={isTop ? 4 : 0}
+                                ry={isTop ? 4 : 0}
+                              >
+                                <title>{`${seg.symbol}: $${seg.value.toLocaleString()}`}</title>
+                              </rect>
+                            );
+                          });
+                          return <g>{rects}</g>;
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  {/* Legend */}
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '1rem 1.5rem',
+                    justifyContent: 'center',
+                    marginTop: '1.25rem',
+                    fontSize: '0.8rem',
+                    lineHeight: 1.2,
+                    maxWidth: '900px',
+                    marginInline: 'auto'
+                  }}>
+                    {results.assets.map((a, i) => (
+                      <div key={a.symbol} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ width: 14, height: 10, background: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][i % 6], borderRadius: 2, display: 'inline-block' }} />
+                        <span style={{ color: 'var(--text-primary)' }}>{a.symbol}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ width: 14, height: 10, background: '#8b949e', borderRadius: 2, display: 'inline-block' }} />
+                      <span style={{ color: 'var(--text-primary)' }}>S&P 500</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '16px', height: '12px', background: '#8b949e', borderRadius: '2px', display: 'inline-block' }} />
-                    <span style={{ color: 'var(--text-primary)' }}>📍 S&P 500 Benchmark</span>
-                  </div>
-                </div>
                 </>
               ) : chartType === 'bar' ? (
                 <ResponsiveContainer width="100%" height={500}>
