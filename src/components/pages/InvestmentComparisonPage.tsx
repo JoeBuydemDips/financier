@@ -896,32 +896,100 @@ export const InvestmentComparisonPage = () => {
 
             <div className="form-group">
               <label className="form-label">Start Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{
-                  fontSize: isMobile ? '16px' : '1rem',
-                  minHeight: isMobile ? '44px' : '3.125rem'
-                }}
-                aria-label="Investment start date"
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{
+                    fontSize: isMobile ? '16px' : '1rem',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    flex: 1
+                  }}
+                  aria-label="Investment start date"
+                />
+                <button
+                  type="button"
+                  onClick={() => setStartDate(new Date().toISOString().split('T')[0])}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#00b383';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-green)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  style={{
+                    padding: isMobile ? '0.75rem' : '0.5rem 0.75rem',
+                    background: 'var(--accent-green)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'white',
+                    fontSize: isMobile ? '0.875rem' : '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Set start date to today"
+                >
+                  📅 Today
+                </button>
+              </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">End Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{
-                  fontSize: isMobile ? '16px' : '1rem',
-                  minHeight: isMobile ? '44px' : '3.125rem'
-                }}
-                aria-label="Investment end date"
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{
+                    fontSize: isMobile ? '16px' : '1rem',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    flex: 1
+                  }}
+                  aria-label="Investment end date"
+                />
+                <button
+                  type="button"
+                  onClick={() => setEndDate(new Date().toISOString().split('T')[0])}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-purple)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--accent-blue)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  style={{
+                    padding: isMobile ? '0.75rem' : '0.5rem 0.75rem',
+                    background: 'var(--accent-blue)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'white',
+                    fontSize: isMobile ? '0.875rem' : '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    minHeight: isMobile ? '44px' : '3.125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  title="Set end date to today"
+                >
+                  📅 Today
+                </button>
+              </div>
             </div>
           </div>
 

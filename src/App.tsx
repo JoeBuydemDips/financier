@@ -515,14 +515,47 @@ function App() {
                     <Calendar size={16} style={{ marginRight: '8px', display: 'inline' }} />
                     End Date
                   </label>
-                  <input
-                    id="end-date-input"
-                    name="endDate"
-                    type="date"
-                    className="form-input"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                    <input
+                      id="end-date-input"
+                      name="endDate"
+                      type="date"
+                      className="form-input"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEndDate(new Date().toISOString().split('T')[0])}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--accent-purple)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(88, 166, 255, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--accent-blue)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        background: 'var(--accent-blue)',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        color: 'white',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap',
+                        height: '3.125rem'
+                      }}
+                      title="Set end date to today"
+                    >
+                      📅 Today
+                    </button>
+                  </div>
                 </div>
 
                 {/* Centered Button Section */}
