@@ -51,25 +51,16 @@ interface DCAResult {
 
 export const InvestmentComparisonPage = () => {
   const isMobile = useIsMobile();
-  const { push } = useToast();
-  
-  // Asset Selection State
   const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-
-  // Input state for allocation editing (to handle cursor position properly)
   const [allocationInputs, setAllocationInputs] = useState<Record<string, string>>({});
-
-  // DCA Parameters
   const [initialAmount, setInitialAmount] = useState('1000');
   const [contributionAmount, setContributionAmount] = useState('500');
   const [contributionFrequency, setContributionFrequency] = useState('monthly');
   const [startDate, setStartDate] = useState('2021-01-01');
   const [endDate, setEndDate] = useState('2024-01-01');
-
-  // Results State
   const [results, setResults] = useState<{
     assets: DCAResult[];
     benchmark: DCAResult;
@@ -79,7 +70,10 @@ export const InvestmentComparisonPage = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [chartData, setChartData] = useState([]);
   const [chartType, setChartType] = useState<'bar' | 'area' | 'portfolio'>('bar');
-
+  const { push } = useToast();
+  // Auto-balance state: when enabled, allocations are kept equal & manual edits disabled
+  const [autoBalanceEnabled, setAutoBalanceEnabled] = useState(false);
+  
   // Search for assets
   const searchAssets = async (query: string) => {
     if (!query.trim()) {
@@ -124,18 +118,23 @@ export const InvestmentComparisonPage = () => {
     const newAsset: Asset = {
       symbol: asset.symbol,
       name: asset.shortName || asset.symbol,
-      allocation: 1 / (selectedAssets.length + 1), // Equal allocation by default
+      allocation: autoBalanceEnabled ? 1 / (selectedAssets.length + 1) : (1 / (selectedAssets.length + 1)), // default equal; manual tweak after if disabled
       quoteType: asset.quoteType,
       exchange: asset.exchange
     };
 
-    // Rebalance existing allocations
-    const rebalancedAssets = selectedAssets.map(a => ({
-      ...a,
-      allocation: 1 / (selectedAssets.length + 1)
-    }));
-
-    setSelectedAssets([...rebalancedAssets, newAsset]);
+    if (autoBalanceEnabled) {
+      // Force equal weights including new asset
+      const updated = [...selectedAssets, newAsset].map(a => ({
+        ...a,
+        allocation: 1 / (selectedAssets.length + 1)
+      }));
+      setSelectedAssets(updated);
+    } else {
+      // Maintain existing allocations and append new with small default weight, then user can adjust
+      // We won't auto-rebalance existing allocations to avoid surprising the user when manual mode
+      setSelectedAssets(prev => [...prev, newAsset]);
+    }
     setSearchQuery('');
     setSearchResults([]);
     
@@ -145,23 +144,40 @@ export const InvestmentComparisonPage = () => {
 
   // Remove asset
   const removeAsset = (symbol: string) => {
+    const assetToRemove = selectedAssets.find(a => a.symbol === symbol) || null;
     const filtered = selectedAssets.filter(asset => asset.symbol !== symbol);
+    if (autoBalanceEnabled) {
+      const rebalanced = filtered.map(a => ({ ...a, allocation: 1 / (filtered.length || 1) }));
+      setSelectedAssets(rebalanced);
+    } else {
+      setSelectedAssets(filtered);
+    }
+    if (assetToRemove) {
+      push({
+        variant: 'info',
+        title: `${assetToRemove.symbol} removed`,
+        description: 'You can undo this change.',
+        actionLabel: 'Undo',
+        onAction: () => {
+          setSelectedAssets(prev => {
+            const restored = [...prev, assetToRemove];
+            if (autoBalanceEnabled) {
+              return restored.map(a => ({ ...a, allocation: 1 / restored.length }));
+            }
+            return restored;
+          });
+        },
+        preserveOnAction: false,
+        duration: 6000
+      });
+    }
     if (filtered.length === 0) {
       push({
         variant: 'info',
         title: 'Assets Cleared',
-        description: 'All assets removed. Add some to begin again.'
+        description: 'Add assets to begin a new comparison.'
       });
     }
-    // Rebalance remaining assets
-    const rebalanced = filtered.map(asset => ({
-      ...asset,
-      allocation: 1 / filtered.length
-    }));
-    setSelectedAssets(rebalanced);
-    
-    // Clear input states since allocations have changed
-    setAllocationInputs({});
   };
 
   // Get display value for input (either from input state or formatted allocation)
@@ -175,6 +191,7 @@ export const InvestmentComparisonPage = () => {
 
   // Update asset allocation with validation
   const updateAllocation = useCallback((symbol: string, allocation: number) => {
+    if (autoBalanceEnabled) return; // Ignore manual edits in auto mode
     // Clamp allocation between 0 and 100 and round to 2 decimal places
     const clampedAllocation = Math.min(Math.max(0, parseFloat(allocation.toFixed(2))), 100);
     
@@ -189,10 +206,11 @@ export const InvestmentComparisonPage = () => {
       delete next[symbol];
       return next;
     });
-  }, [selectedAssets]);
+  }, [selectedAssets, autoBalanceEnabled]);
 
   // Handle direct input changes - store in temporary input state
   const handleAllocationChange = useCallback((symbol: string, value: string) => {
+    if (autoBalanceEnabled) return; // disable input edits
     // Allow empty string for editing
     if (value === '') {
       setAllocationInputs(prev => ({
@@ -212,10 +230,11 @@ export const InvestmentComparisonPage = () => {
       }));
     }
     // If invalid format, don't update the input state (effectively preventing the input)
-  }, []);
+  }, [autoBalanceEnabled]);
 
   // Handle when input loses focus - validate and update actual allocation
   const handleAllocationBlur = useCallback((symbol: string, value: string) => {
+    if (autoBalanceEnabled) return;
     // Parse and validate the final value
     const numValue = parseFloat(value);
     if (isNaN(numValue) || value.trim() === '') {
@@ -228,17 +247,18 @@ export const InvestmentComparisonPage = () => {
       const cappedValue = parseFloat(numValue.toFixed(2));
       updateAllocation(symbol, cappedValue);
     }
-  }, [selectedAssets, updateAllocation]);
+  }, [selectedAssets, updateAllocation, autoBalanceEnabled]);
 
   // Adjust allocation with increment/decrement buttons
   const adjustAllocation = useCallback((symbol: string, delta: number) => {
+    if (autoBalanceEnabled) return;
     const currentAsset = selectedAssets.find(asset => asset.symbol === symbol);
     if (currentAsset) {
       const currentPercentage = currentAsset.allocation * 100;
       const newPercentage = currentPercentage + delta;
       updateAllocation(symbol, newPercentage);
     }
-  }, [selectedAssets, updateAllocation]);
+  }, [selectedAssets, updateAllocation, autoBalanceEnabled]);
 
   // Auto-rebalance remaining allocations
   const rebalanceAllocations = useCallback(() => {
@@ -254,6 +274,30 @@ export const InvestmentComparisonPage = () => {
     // Clear all input states since we've reset allocations
     setAllocationInputs({});
   }, [selectedAssets]);
+
+  // Enforce equal weighting whenever auto-balance is enabled or asset count changes
+  useEffect(() => {
+    if (autoBalanceEnabled && selectedAssets.length > 0) {
+      setSelectedAssets(prev => prev.map(a => ({ ...a, allocation: 1 / prev.length })));
+      setAllocationInputs({});
+    }
+  }, [autoBalanceEnabled, selectedAssets.length]);
+
+  const toggleAutoBalance = () => {
+    setAutoBalanceEnabled(prev => {
+      const next = !prev;
+      if (!prev && selectedAssets.length > 0) {
+        // turning ON
+        push({
+          id: 'auto-balance-status',
+            variant: 'info',
+            title: 'Auto-Balance Enabled',
+            description: 'Equal weighting locked. Uncheck to edit manually.'
+        });
+      }
+      return next;
+    });
+  };
 
   // Calculate DCA performance
   const calculateDCA = async () => {
@@ -475,8 +519,8 @@ export const InvestmentComparisonPage = () => {
                   background: 'var(--bg-quaternary)',
                   borderBottom: '1px solid var(--border-primary)',
                   fontSize: '0.75rem',
-                  color: 'var(--text-secondary)',
-                  fontWeight: '600',
+                              outline: 'none',
+                              opacity: autoBalanceEnabled ? 0.6 : 1,
                   textTransform: 'uppercase'
                 }}>
                   Click to add asset
@@ -614,7 +658,30 @@ export const InvestmentComparisonPage = () => {
                       )}
                     </span>
                     
-                    {selectedAssets.length > 1 && (
+                    {selectedAssets.length > 0 && (
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        background: autoBalanceEnabled ? 'rgba(0,211,149,0.15)' : 'var(--bg-tertiary)',
+                        border: autoBalanceEnabled ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: 'var(--radius-sm)'
+                      }} title="Automatically keep all assets equally weighted">
+                        <input
+                          type="checkbox"
+                          checked={autoBalanceEnabled}
+                          onChange={toggleAutoBalance}
+                          style={{ cursor: 'pointer' }}
+                          aria-label="Enable auto-balance equal weighting"
+                        />
+                        Auto-Balance
+                      </label>
+                    )}
+                    {!autoBalanceEnabled && selectedAssets.length > 1 && (
                       <motion.button
                         onClick={rebalanceAllocations}
                         whileHover={{ scale: 1.05 }}
@@ -718,12 +785,12 @@ export const InvestmentComparisonPage = () => {
                         }}>
                           <button
                             onClick={() => adjustAllocation(asset.symbol, -5)}
-                            disabled={(asset.allocation * 100) <= 0}
+                            disabled={(asset.allocation * 100) <= 0 || autoBalanceEnabled}
                             style={{
                               background: 'var(--accent-red)',
                               border: 'none',
                               color: 'white',
-                              cursor: (asset.allocation * 100) <= 0 ? 'not-allowed' : 'pointer',
+                              cursor: (asset.allocation * 100) <= 0 || autoBalanceEnabled ? 'not-allowed' : 'pointer',
                               padding: '0.5rem',
                               borderRadius: '4px',
                               display: 'flex',
@@ -731,7 +798,7 @@ export const InvestmentComparisonPage = () => {
                               justifyContent: 'center',
                               minWidth: '36px',
                               minHeight: '36px',
-                              opacity: (asset.allocation * 100) <= 0 ? 0.5 : 1
+                              opacity: (asset.allocation * 100) <= 0 || autoBalanceEnabled ? 0.5 : 1,
                             }}
                             title="Decrease by 5%"
                             aria-label="Decrease allocation"
@@ -754,10 +821,12 @@ export const InvestmentComparisonPage = () => {
                               color: 'var(--text-primary)',
                               textAlign: 'center',
                               fontSize: '16px', // Prevent zoom on iOS
-                              fontWeight: '600'
+                              fontWeight: '600',
+                              opacity: autoBalanceEnabled ? 0.6 : 1
                             }}
                             placeholder="0.0"
                             aria-label={`Allocation percentage for ${asset.symbol}`}
+                            disabled={autoBalanceEnabled}
                           />
                           
                           <span style={{ 
@@ -768,12 +837,12 @@ export const InvestmentComparisonPage = () => {
                           
                           <button
                             onClick={() => adjustAllocation(asset.symbol, 5)}
-                            disabled={(asset.allocation * 100) >= 100}
+                            disabled={(asset.allocation * 100) >= 100 || autoBalanceEnabled}
                             style={{
                               background: 'var(--accent-green)',
                               border: 'none',
                               color: 'white',
-                              cursor: (asset.allocation * 100) >= 100 ? 'not-allowed' : 'pointer',
+                              cursor: (asset.allocation * 100) >= 100 || autoBalanceEnabled ? 'not-allowed' : 'pointer',
                               padding: '0.5rem',
                               borderRadius: '4px',
                               display: 'flex',
@@ -781,7 +850,7 @@ export const InvestmentComparisonPage = () => {
                               justifyContent: 'center',
                               minWidth: '36px',
                               minHeight: '36px',
-                              opacity: (asset.allocation * 100) >= 100 ? 0.5 : 1
+                              opacity: (asset.allocation * 100) >= 100 || autoBalanceEnabled ? 0.5 : 1
                             }}
                             title="Increase by 5%"
                             aria-label="Increase allocation"
@@ -828,12 +897,12 @@ export const InvestmentComparisonPage = () => {
                         }}>
                           <button
                             onClick={() => adjustAllocation(asset.symbol, -1)}
-                            disabled={(asset.allocation * 100) <= 0}
+                            disabled={(asset.allocation * 100) <= 0 || autoBalanceEnabled}
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              color: (asset.allocation * 100) <= 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                              cursor: (asset.allocation * 100) <= 0 ? 'not-allowed' : 'pointer',
+                              color: (asset.allocation * 100) <= 0 || autoBalanceEnabled ? 'var(--text-muted)' : 'var(--text-primary)',
+                              cursor: (asset.allocation * 100) <= 0 || autoBalanceEnabled ? 'not-allowed' : 'pointer',
                               padding: '0.25rem',
                               borderRadius: '3px',
                               display: 'flex',
@@ -862,20 +931,22 @@ export const InvestmentComparisonPage = () => {
                               color: 'var(--text-primary)',
                               textAlign: 'center',
                               fontSize: '0.875rem',
-                              outline: 'none'
+                              outline: 'none',
+                              opacity: autoBalanceEnabled ? 0.6 : 1,
                             }}
                             placeholder="0.0"
                             aria-label={`Allocation percentage for ${asset.symbol}`}
+                            disabled={autoBalanceEnabled}
                           />
                           
                           <button
                             onClick={() => adjustAllocation(asset.symbol, 1)}
-                            disabled={(asset.allocation * 100) >= 100}
+                            disabled={(asset.allocation * 100) >= 100 || autoBalanceEnabled}
                             style={{
                               background: 'transparent',
                               border: 'none',
-                              color: (asset.allocation * 100) >= 100 ? 'var(--text-muted)' : 'var(--text-primary)',
-                              cursor: (asset.allocation * 100) >= 100 ? 'not-allowed' : 'pointer',
+                              color: (asset.allocation * 100) >= 100 || autoBalanceEnabled ? 'var(--text-muted)' : 'var(--text-primary)',
+                              cursor: (asset.allocation * 100) >= 100 || autoBalanceEnabled ? 'not-allowed' : 'pointer',
                               padding: '0.25rem',
                               borderRadius: '3px',
                               display: 'flex',
@@ -926,7 +997,7 @@ export const InvestmentComparisonPage = () => {
                   fontSize: '0.875rem',
                   color: 'var(--text-muted)'
                 }}>
-                  💡 <strong>Tip:</strong> Adjust allocation percentages above, then scroll down to set your investment strategy and calculate performance.
+                  💡 <strong>Tip:</strong> {autoBalanceEnabled ? 'Auto-Balance is ON. Disable it to manually edit allocations.' : 'Adjust allocation percentages above, then scroll down to set your strategy and calculate performance.'}
                 </div>
               )}
             </div>
