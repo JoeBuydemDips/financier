@@ -26,6 +26,7 @@ import {
 } from 'recharts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useToast } from '../../components/toast/ToastContext';
+import AllocationPie from '../../components/AllocationPie';
 
 interface Asset {
   symbol: string;
@@ -638,10 +639,10 @@ export const InvestmentComparisonPage = () => {
                   
                   <div style={{ 
                     display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '1rem',
+                    alignItems: isMobile ? 'stretch' : 'center', 
+                    gap: isMobile ? '0.75rem' : '1rem',
                     flexDirection: isMobile ? 'column' : 'row',
-                    width: isMobile ? '100%' : 'auto'
+                    width: '100%'
                   }}>
                     <span style={{ 
                       fontSize: '0.875rem', 
@@ -659,27 +660,50 @@ export const InvestmentComparisonPage = () => {
                     </span>
                     
                     {selectedAssets.length > 0 && (
-                      <label style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        background: autoBalanceEnabled ? 'rgba(0,211,149,0.15)' : 'var(--bg-tertiary)',
-                        border: autoBalanceEnabled ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
-                        padding: '0.35rem 0.6rem',
-                        borderRadius: 'var(--radius-sm)'
-                      }} title="Automatically keep all assets equally weighted">
-                        <input
-                          type="checkbox"
-                          checked={autoBalanceEnabled}
-                          onChange={toggleAutoBalance}
-                          style={{ cursor: 'pointer' }}
-                          aria-label="Enable auto-balance equal weighting"
-                        />
-                        Auto-Balance
-                      </label>
+                      <button
+                        type="button"
+                        onClick={toggleAutoBalance}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.75rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          background: autoBalanceEnabled ? 'rgba(0,211,149,0.15)' : 'var(--bg-tertiary)',
+                          border: autoBalanceEnabled ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
+                          padding: isMobile ? '0.75rem 0.85rem' : '0.45rem 0.7rem',
+                          borderRadius: 'var(--radius-sm)',
+                          width: isMobile ? '100%' : 'auto',
+                          minHeight: isMobile ? '44px' : 'auto',
+                          position: 'relative'
+                        }}
+                        aria-pressed={autoBalanceEnabled}
+                        aria-label="Toggle auto-balance equal weighting"
+                        title="Automatically keep all assets equally weighted"
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{
+                            width: 18,
+                            height: 18,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: autoBalanceEnabled ? 'var(--accent-green)' : 'var(--bg-secondary)',
+                            border: autoBalanceEnabled ? '1px solid var(--accent-green)' : '1px solid var(--border-primary)',
+                            borderRadius: 4,
+                            transition: 'all 0.2s ease'
+                          }}>{autoBalanceEnabled ? '✓' : ''}</span>
+                          Auto-Balance
+                        </span>
+                        <span style={{
+                          fontSize: '0.6rem',
+                          letterSpacing: '0.5px',
+                          color: autoBalanceEnabled ? 'var(--accent-green)' : 'var(--text-muted)',
+                          fontWeight: 600
+                        }}>{autoBalanceEnabled ? 'ON' : 'OFF'}</span>
+                      </button>
                     )}
                     {!autoBalanceEnabled && selectedAssets.length > 1 && (
                       <motion.button
@@ -710,7 +734,37 @@ export const InvestmentComparisonPage = () => {
                       </motion.button>
                     )}
                   </div>
-                </div>              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                </div>
+                {/* Live Allocation Pie (only show when 2+ assets) */}
+                {selectedAssets.length >= 2 && (
+                  <div style={{
+                    margin: '0.5rem 0 1rem',
+                    padding: '0.75rem 0.75rem 0.5rem',
+                    background: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
+                        CURRENT ALLOCATION
+                      </span>
+                      {autoBalanceEnabled && (
+                        <span style={{ fontSize: '0.6rem', color: 'var(--accent-green)', fontWeight: 600 }} title="Auto-balance keeps slices equal">
+                          AUTO
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
+                      <AllocationPie assets={selectedAssets} size={isMobile ? 180 : 240} />
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
                 {selectedAssets.map((asset) => (
                   <motion.div
                     key={asset.symbol}
