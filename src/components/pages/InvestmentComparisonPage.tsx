@@ -22,7 +22,10 @@ import {
   Tooltip,
   Legend,
   BarChart,
-  Bar
+  Bar,
+  ComposedChart,
+  Area,
+  AreaChart
 } from 'recharts';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
@@ -76,7 +79,7 @@ export const InvestmentComparisonPage = () => {
   } | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [chartData, setChartData] = useState([]);
-  const [chartType, setChartType] = useState<'bar' | 'area'>('bar');
+  const [chartType, setChartType] = useState<'bar' | 'area' | 'portfolio'>('bar');
 
   // Search for assets
   const searchAssets = async (query: string) => {
@@ -281,23 +284,20 @@ export const InvestmentComparisonPage = () => {
 
   // Generate chart data for visualization
   const generateChartData = (data: any) => {
-    // Create normalized performance chart data
+    // Create chart data for individual assets only (All Assets view)
     const chartData = data.assets.map((asset: DCAResult) => ({
       name: asset.symbol,
       value: asset.finalValue,
       invested: asset.totalInvested,
       return: asset.profitLoss
     }));
-    
-    chartData.push({
-      name: 'S&P 500',
-      value: data.benchmark.finalValue,
-      invested: data.benchmark.totalInvested,
-      return: data.benchmark.profitLoss || (data.benchmark.finalValue - data.benchmark.totalInvested)
-    });
 
     setChartData(chartData);
     
+    // Calculate portfolio totals for timeline chart
+    const portfolioTotal = data.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0);
+    const portfolioInvested = data.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0);
+
     // Generate mock timeline data for the line chart
     // In a real implementation, this would come from the backend
     const mockTimeline: Record<string, any>[] = [];
@@ -309,7 +309,8 @@ export const InvestmentComparisonPage = () => {
       const currentDate = new Date(startDateObj.getTime() + (totalDays / 12) * i * 24 * 60 * 60 * 1000);
       const timelinePoint: Record<string, any> = {
         date: currentDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        benchmark: data.benchmark.totalInvested * (1 + (data.benchmark.totalReturn / 100) * (i / 12))
+        benchmark: data.benchmark.totalInvested * (1 + (data.benchmark.totalReturn / 100) * (i / 12)),
+        portfolio: portfolioInvested * (1 + (((portfolioTotal - portfolioInvested) / portfolioInvested) * 100 / 100) * (i / 12))
       };
       
       data.assets.forEach((asset: DCAResult) => {
@@ -1217,23 +1218,116 @@ export const InvestmentComparisonPage = () => {
               </h3>
               
               {/* Chart Type Selector */}
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   className={`chart-type-btn ${chartType === 'bar' ? 'active' : ''}`}
                   onClick={() => setChartType('bar')}
                 >
-                  📊 Comparison
+                  📊 All Assets
+                </button>
+                <button
+                  className={`chart-type-btn ${chartType === 'portfolio' ? 'active' : ''}`}
+                  onClick={() => setChartType('portfolio')}
+                >
+                  🎯 Portfolio vs S&P 500
                 </button>
                 <button
                   className={`chart-type-btn ${chartType === 'area' ? 'active' : ''}`}
                   onClick={() => setChartType('area')}
                 >
-                  📈 Performance
+                  📈 Performance Timeline
                 </button>
               </div>
             </div>
             <div className="card-body">
-              {chartType === 'bar' ? (
+              {chartType === 'portfolio' ? (
+                <ResponsiveContainer width="100%" height={500}>
+                  <BarChart 
+                    data={[
+                      {
+                        name: 'Portfolio',
+                        ...results.assets.reduce((acc: any, asset: DCAResult) => {
+                          acc[asset.symbol] = asset.finalValue;
+                          return acc;
+                        }, {}),
+                        portfolioTotal: results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0)
+                      },
+                      {
+                        name: 'S&P 500',
+                        'S&P 500': results.benchmark.finalValue,
+                        portfolioTotal: results.benchmark.finalValue
+                      }
+                    ]} 
+                    margin={{ 
+                      top: 20, 
+                      right: 30, 
+                      left: 30, 
+                      bottom: 60 
+                    }}
+                    barGap={20}
+                    barSize={120}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#8b949e"
+                      fontSize={12}
+                      tick={{ fill: '#8b949e' }}
+                      axisLine={{ stroke: '#30363d' }}
+                      tickLine={{ stroke: '#30363d' }}
+                      interval={0}
+                    />
+                    <YAxis 
+                      stroke="#8b949e"
+                      fontSize={isMobile ? 10 : 12}
+                      tick={{ fill: '#8b949e' }}
+                      axisLine={{ stroke: '#30363d' }}
+                      tickLine={{ stroke: '#30363d' }}
+                      tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`}
+                      width={isMobile ? 40 : 50}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'rgba(22, 27, 34, 0.95)',
+                        border: '1px solid #30363d',
+                        borderRadius: '12px',
+                        color: '#f0f6fc',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                        backdropFilter: 'blur(12px)',
+                        fontSize: isMobile ? '12px' : '14px'
+                      }}
+                      formatter={(value, name) => [
+                        `$${Number(value).toLocaleString()}`,
+                        name === 'S&P 500' ? '📍 S&P 500 Benchmark' : `📊 ${name}`
+                      ]}
+                      labelStyle={{ color: '#58a6ff', fontWeight: '600' }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ 
+                        paddingTop: '20px'
+                      }}
+                      iconType="rect"
+                    />
+                    {results.assets.map((asset: DCAResult, index: number) => (
+                      <Bar
+                        key={asset.symbol}
+                        dataKey={asset.symbol}
+                        stackId="portfolio"
+                        fill={['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6]}
+                        name={`📊 ${asset.symbol}`}
+                        radius={index === results.assets.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                      />
+                    ))}
+                    <Bar 
+                      dataKey="S&P 500" 
+                      fill="#8b949e" 
+                      name="📍 S&P 500 Benchmark"
+                      radius={[4, 4, 4, 4]}
+                      opacity={0.8}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : chartType === 'bar' ? (
                 <ResponsiveContainer width="100%" height={500}>
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#30363d" opacity={0.3} />
@@ -1332,23 +1426,33 @@ export const InvestmentComparisonPage = () => {
                       wrapperStyle={{ paddingTop: '20px' }}
                       iconType="line"
                     />
+                    <Line
+                      type="monotone"
+                      dataKey="portfolio"
+                      stroke="#00d395"
+                      strokeWidth={4}
+                      dot={{ fill: '#00d395', strokeWidth: 2, r: 5 }}
+                      activeDot={{ r: 7, stroke: '#00d395', strokeWidth: 3 }}
+                      name="🎯 Portfolio Total"
+                    />
                     {results.assets.map((asset, index) => (
                       <Line
                         key={asset.symbol}
                         type="monotone"
                         dataKey={asset.symbol}
-                        stroke={['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6]}
-                        strokeWidth={3}
-                        dot={{ fill: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6], strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, stroke: ['#00d395', '#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b'][index % 6], strokeWidth: 2 }}
+                        stroke={['#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b', '#00b383'][index % 6]}
+                        strokeWidth={2}
+                        dot={{ fill: ['#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b', '#00b383'][index % 6], strokeWidth: 1, r: 3 }}
+                        activeDot={{ r: 5, stroke: ['#58a6ff', '#ff9f43', '#a855f7', '#ef4444', '#f59e0b', '#00b383'][index % 6], strokeWidth: 2 }}
                         name={`📊 ${asset.symbol}`}
+                        opacity={0.7}
                       />
                     ))}
                     <Line
                       type="monotone"
                       dataKey="benchmark"
                       stroke="#8b949e"
-                      strokeWidth={2}
+                      strokeWidth={3}
                       strokeDasharray="5 5"
                       dot={false}
                       name="📍 S&P 500"
@@ -1425,6 +1529,49 @@ export const InvestmentComparisonPage = () => {
                         </td>
                       </tr>
                     ))}
+                    
+                    {/* Portfolio Total Row */}
+                    <tr style={{ 
+                      borderBottom: '2px solid var(--accent-green)',
+                      backgroundColor: 'rgba(0, 211, 149, 0.1)',
+                      fontWeight: '600'
+                    }}>
+                      <td style={{ padding: '1rem' }}>
+                        <div>
+                          <div style={{ fontWeight: '700', color: 'var(--accent-green)', fontSize: '1.1rem' }}>
+                            🎯 Portfolio Total
+                          </div>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            Combined Performance
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
+                        100%
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
+                        ${results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--accent-green)' }}>
+                        ${results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0).toLocaleString()}
+                      </td>
+                      <td style={{ 
+                        padding: '1rem', 
+                        textAlign: 'right', 
+                        color: 'var(--accent-green)',
+                        fontWeight: '700'
+                      }}>
+                        +${(results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0) - results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0)).toLocaleString()}
+                      </td>
+                      <td style={{ 
+                        padding: '1rem', 
+                        textAlign: 'right',
+                        color: 'var(--accent-green)',
+                        fontWeight: '700'
+                      }}>
+                        {((results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.finalValue, 0) - results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0)) / results.assets.reduce((sum: number, asset: DCAResult) => sum + asset.totalInvested, 0) * 100 / (new Date(endDate).getFullYear() - new Date(startDate).getFullYear() || 1)).toFixed(1)}%
+                      </td>
+                    </tr>
                     
                     {/* Benchmark Row */}
                     <tr style={{ 
