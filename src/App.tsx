@@ -17,6 +17,7 @@ import { OverviewPage } from './components/pages/OverviewPage';
 import { InvestmentComparisonPage } from './components/pages/InvestmentComparisonPage';
 import { StockDetailsPage } from './components/pages/StockDetailsPage';
 import { RiskAnalysisPage } from './components/pages/RiskAnalysisPage';
+import { Footer } from './components/Footer';
 
 // Beginner Mode Context (lightweight)
 interface BeginnerModeContextValue { beginnerMode: boolean; toggleBeginnerMode: () => void; }
@@ -789,6 +790,9 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
     </BeginnerModeContext.Provider>
   );
